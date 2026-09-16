@@ -1,261 +1,179 @@
-import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
-import { getRoomBySlug, updateCanvasData, updateLastActive } from '../db/queries.js';
-
-const USER_COLORS = [
-  '#2563EB', '#DC2626', '#16A34A', '#D97706', '#7C3AED',
-  '#DB2777', '#0891B2', '#65A30D', '#9333EA', '#EA580C'
-];
-
-function broadcast(roomState, messageStr, excludeWs = null) {
-  for (const [ws, _] of roomState.clients) {
-    if (ws !== excludeWs && ws.readyState === 1 /* WebSocket.OPEN */) {
-      ws.send(messageStr);
-    }
-  }
-}
+import { getRoomBySlug, updateCanvasData } from '../db/queries.js';
 
 export function setupWsHandler(wss, db, activeRooms) {
-  // Heartbeat alle 30 Sekunden
-  const interval = setInterval(() => {
-    wss.clients.forEach(ws => {
-      if (ws.isAlive === false) return ws.terminate();
-      ws.isAlive = false;
-      ws.send(JSON.stringify({ type: 'ping' }));
-    });
-  }, 30000);
+  wss.on('connection', (ws, req) => {
+    const url = new URL(req.url, 'http://localhost');
+    const roomSlug = url.searchParams.get('room');
 
-  wss.on('close', () => {
-    clearInterval(interval);
-  });
-
-  wss.on('connection', async (ws, req) => {
-    ws.isAlive = true;
-    
-    // Parse URL
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const slug = url.searchParams.get('room');
-
-    if (!slug) {
-      ws.send(JSON.stringify({ type: 'error', code: 'ROOM_NOT_FOUND' }));
-      return ws.close();
+    if (!roomSlug) {
+      ws.close(1008, 'Room required');
+      return;
     }
 
-    const room = getRoomBySlug(db, slug);
+    const room = getRoomBySlug(db, roomSlug);
     if (!room) {
       ws.send(JSON.stringify({ type: 'error', code: 'ROOM_NOT_FOUND' }));
-      return ws.close();
+      ws.close();
+      return;
     }
 
-    // Get or initialize room state
-    let roomState = activeRooms.get(slug);
-    if (!roomState) {
-      let strokes = [];
-      let erased = [];
+    if (!activeRooms.has(roomSlug)) {
+      let initialHistory = [];
       try {
-        const parsed = JSON.parse(room.canvas_data);
-        strokes = parsed.strokes || [];
-        erased = parsed.erased || [];
+        if (room.canvas_data && room.canvas_data.length > 5) {
+            const parsed = JSON.parse(room.canvas_data);
+            if (Array.isArray(parsed.chatHistory)) {
+                initialHistory = parsed.chatHistory;
+            } else if (Array.isArray(parsed)) {
+                initialHistory = parsed;
+            }
+        }
       } catch (e) {
-        // Fallback: ignoriere fehlerhafte Canvas-Daten, starte mit leerem Board
-        strokes = [];
-        erased = [];
+          console.error('JSON Parse error', e);
       }
-
-      roomState = {
+      activeRooms.set(roomSlug, {
         clients: new Map(),
-        strokes: strokes,
-        eraserStrokes: new Set(erased),
-        lastSaved: Date.now(),
-        colorIndex: 0
-      };
-      activeRooms.set(slug, roomState);
+        chatHistory: initialHistory,
+        lastSaved: Date.now()
+      });
     }
+
+    const roomState = activeRooms.get(roomSlug);
 
     if (roomState.clients.size >= room.max_users) {
       ws.send(JSON.stringify({ type: 'error', code: 'ROOM_FULL' }));
-      return ws.close();
+      ws.close();
+      return;
     }
 
-    let isAuthenticated = false;
-    let userId = uuidv4();
-    
-    // Auth Timeout (5s)
+    const USER_COLORS = ['#60A5FA', '#F87171', '#34D399', '#FBBF24', '#A78BFA', '#F472B6', '#2DD4BF', '#84CC16', '#C084FC', '#FB923C'];
+
+    let isAuthed = false;
+
     const authTimeout = setTimeout(() => {
-      if (!isAuthenticated) {
-        ws.send(JSON.stringify({ type: 'error', code: 'AUTH_TIMEOUT' }));
-        ws.close();
-      }
+      if (!isAuthed) ws.close();
     }, 5000);
 
-    ws.on('message', async (messageBuffer) => {
-      let msg;
+    ws.on('message', (data) => {
       try {
-        msg = JSON.parse(messageBuffer.toString());
-      } catch (e) {
-        return;
-      }
+        const msg = JSON.parse(data);
 
-      if (msg.type === 'pong') {
-        ws.isAlive = true;
-        return;
-      }
-
-      if (!isAuthenticated) {
         if (msg.type === 'auth') {
           if (room.password_hash) {
-            const match = await bcrypt.compare(msg.password || '', room.password_hash);
-            if (!match) {
-              ws.send(JSON.stringify({ type: 'error', code: 'WRONG_PASSWORD' }));
-              return ws.close();
-            }
+            import('bcryptjs').then(bcrypt => {
+              bcrypt.default.compare(msg.password || '', room.password_hash).then(match => {
+                if (match) finishAuth(msg.username);
+                else ws.send(JSON.stringify({ type: 'error', code: 'WRONG_PASSWORD' }));
+              });
+            });
+          } else {
+            finishAuth(msg.username);
           }
-          
-          clearTimeout(authTimeout);
-          isAuthenticated = true;
-
-          // Assign color
-          const color = USER_COLORS[roomState.colorIndex % USER_COLORS.length];
-          roomState.colorIndex++;
-
-          roomState.clients.set(ws, { userId, color, joinedAt: Date.now() });
-
-          // Send welcome
-          ws.send(JSON.stringify({
-            type: 'welcome',
-            userId,
-            color,
-            users: roomState.clients.size,
-            canvas: {
-              strokes: roomState.strokes,
-              erased: Array.from(roomState.eraserStrokes)
-            }
-          }));
-
-          // Notify others
-          broadcast(roomState, JSON.stringify({
-            type: 'user_joined',
-            userId,
-            color,
-            users: roomState.clients.size
-          }), ws);
-
-          updateLastActive(db, room.id);
+          return;
         }
-        return;
-      }
 
-      // Handle authenticated messages
-      try {
+        if (!isAuthed) return;
+
         switch (msg.type) {
-          case 'stroke_start':
-          case 'stroke_point':
-          case 'stroke_end':
-            // Stroke persistenz und broadcast
+          case 'chat_message':
             const clientInfo = roomState.clients.get(ws);
-            if (msg.type === 'stroke_start') {
-              const newStroke = {
-                id: msg.id,
+            const newMsg = {
+                id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(),
                 userId: clientInfo.userId,
-                color: msg.color || clientInfo.color,
-                width: msg.width || 2,
-                tool: msg.tool || 'pen',
-                points: [],
-                text: msg.text,
-                x: msg.x,
-                y: msg.y,
-                fontSize: msg.fontSize
-              };
-              roomState.strokes.push(newStroke);
-            } else if (msg.type === 'stroke_point') {
-              const stroke = roomState.strokes.find(s => s.id === msg.id);
-              if (stroke) {
-                stroke.points.push({ x: msg.x, y: msg.y, p: msg.p });
-              }
+                username: clientInfo.username,
+                color: clientInfo.color,
+                timestamp: Date.now(),
+                strokes: msg.strokes,
+                aspectRatio: msg.aspectRatio
+            };
+            
+            roomState.chatHistory.push(newMsg);
+            
+            // Limit history to last 50 messages to save memory
+            if (roomState.chatHistory.length > 50) {
+                roomState.chatHistory.shift();
             }
 
-            msg.userId = clientInfo.userId;
-            broadcast(roomState, JSON.stringify(msg), ws);
+            broadcast(roomState, JSON.stringify({
+                type: 'chat_message',
+                ...newMsg
+            }));
+            
             triggerAutoSave(db, room.id, roomState);
             break;
-
-          case 'cursor':
-          case 'laser':
-            msg.userId = roomState.clients.get(ws).userId;
-            broadcast(roomState, JSON.stringify(msg), ws);
-            break;
-
-          case 'undo':
-            const uInfo = roomState.clients.get(ws);
-            // Finde den letzten Stroke dieses Nutzers
-            const userStrokes = roomState.strokes.filter(s => s.userId === uInfo.userId && !roomState.eraserStrokes.has(s.id));
-            if (userStrokes.length > 0) {
-              const lastStroke = userStrokes[userStrokes.length - 1];
-              roomState.eraserStrokes.add(lastStroke.id);
-              broadcast(roomState, JSON.stringify({ type: 'undo', userId: uInfo.userId, strokeId: lastStroke.id }));
-              triggerAutoSave(db, room.id, roomState);
-            }
-            break;
-
-          case 'erase_stroke':
-            if (msg.strokeId) {
-                roomState.eraserStrokes.add(msg.strokeId);
-                broadcast(roomState, JSON.stringify({ type: 'undo', strokeId: msg.strokeId }));
-                triggerAutoSave(db, room.id, roomState);
-            }
-            break;
-
+            
           case 'clear':
-            roomState.strokes = [];
-            roomState.eraserStrokes.clear();
-            const cInfo = roomState.clients.get(ws);
-            broadcast(roomState, JSON.stringify({ type: 'clear', userId: cInfo.userId }));
+            roomState.chatHistory = [];
             triggerAutoSave(db, room.id, roomState);
+            break;
+
+          case 'ping':
+            ws.send(JSON.stringify({ type: 'pong' }));
             break;
         }
       } catch (err) {
-        console.error('Error handling message:', err);
+        console.error('WS Error:', err);
       }
     });
 
     ws.on('close', () => {
-      clearTimeout(authTimeout);
       if (roomState.clients.has(ws)) {
-        const info = roomState.clients.get(ws);
         roomState.clients.delete(ws);
-        
-        broadcast(roomState, JSON.stringify({
-          type: 'user_left',
-          userId: info.userId,
-          users: roomState.clients.size
-        }));
-
-        if (roomState.clients.size === 0) {
-          // Speichere und entferne aus activeRooms
-          saveCanvasToDb(db, room.id, roomState);
-          activeRooms.delete(slug);
-        }
+        broadcastActiveUsers(roomState);
       }
     });
+
+    function finishAuth(username) {
+      clearTimeout(authTimeout);
+      isAuthed = true;
+
+      const userId = Date.now().toString() + Math.random().toString();
+      const color = USER_COLORS[roomState.clients.size % USER_COLORS.length];
+      const safeName = (username || 'Anon').substring(0, 15);
+
+      roomState.clients.set(ws, { userId, color, username: safeName, joinedAt: Date.now() });
+
+      const usersList = getActiveUsersList(roomState);
+
+      ws.send(JSON.stringify({
+        type: 'welcome',
+        userId,
+        color,
+        usersList,
+        canvas: { chatHistory: roomState.chatHistory }
+      }));
+
+      broadcastActiveUsers(roomState);
+    }
   });
 
-  function triggerAutoSave(db, roomId, roomState) {
-    const now = Date.now();
-    if (now - roomState.lastSaved > 60000) { // alle 60 Sekunden
-      saveCanvasToDb(db, roomId, roomState);
-      roomState.lastSaved = now;
+  function getActiveUsersList(roomState) {
+      const list = [];
+      for (const client of roomState.clients.values()) {
+          list.push({ userId: client.userId, username: client.username, color: client.color });
+      }
+      return list;
+  }
+
+  function broadcastActiveUsers(roomState) {
+      const list = getActiveUsersList(roomState);
+      broadcast(roomState, JSON.stringify({ type: 'active_users', usersList: list }));
+  }
+
+  function broadcast(roomState, message, excludeWs = null) {
+    for (const [clientWs, _] of roomState.clients) {
+      if (clientWs !== excludeWs && clientWs.readyState === 1) {
+        clientWs.send(message);
+      }
     }
   }
 
-  function saveCanvasToDb(db, roomId, roomState) {
-    const data = JSON.stringify({
-      strokes: roomState.strokes,
-      erased: Array.from(roomState.eraserStrokes)
-    });
-    try {
+  function triggerAutoSave(db, roomId, roomState) {
+    const now = Date.now();
+    if (now - roomState.lastSaved > 10000) {
+      roomState.lastSaved = now;
+      const data = JSON.stringify({ chatHistory: roomState.chatHistory });
       updateCanvasData(db, roomId, data);
-    } catch (err) {
-      console.error('AutoSave failed:', err);
     }
   }
 }

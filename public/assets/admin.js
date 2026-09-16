@@ -52,7 +52,7 @@ function showDashboard() {
     }
 }
 
-async function loadRooms() {
+window.loadRooms = async function() {
     if (!token) return;
     
     try {
@@ -76,33 +76,40 @@ function renderRooms(rooms) {
     const tbody = document.getElementById('rooms-tbody');
     tbody.innerHTML = '';
     
+    let totalActiveUsers = 0;
+    
     rooms.forEach(room => {
+        totalActiveUsers += room.activeUsers || 0;
+        
         const tr = document.createElement('tr');
         
-        const createdDate = new Date(room.created_at).toLocaleString();
-        const lastActivityDate = new Date(room.last_active_at).toLocaleString();
+        const createdDate = new Date(room.created_at).toLocaleDateString('de-DE');
+        const lastActivityDate = new Date(room.last_active_at).toLocaleString('de-DE', { hour: '2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
         
         tr.innerHTML = `
-            <td>
-                <strong>${room.name || '-'}</strong><br>
-                <small class="text-gray">${room.slug}</small>
+            <td class="room-name-cell">
+                <strong>${room.name || 'Ohne Name'}</strong>
+                <small>${room.slug}</small>
             </td>
-            <td><span class="badge ${room.type}">${room.type}</span></td>
-            <td>${room.activeUsers}</td>
+            <td><span class="badge ${room.type}">${room.type === 'permanent' ? 'Permanent' : 'Temporär'}</span></td>
+            <td><strong>${room.activeUsers}</strong> / ${room.max_users}</td>
             <td>${lastActivityDate}</td>
-            <td>${createdDate}</td>
-            <td class="action-btns">
-                <button class="btn-icon" title="Clear Board" onclick="clearRoom('${room.id}')">🧹</button>
-                <button class="btn-icon" title="Löschen" onclick="deleteRoom('${room.id}')">🗑</button>
+            <td class="modern-action-btns">
+                <button class="action-btn qr" title="QR Code anzeigen" onclick="showQr('${room.slug}')">📱</button>
+                <button class="action-btn" title="Board leeren" onclick="clearRoom('${room.id}')">🧹</button>
+                <button class="action-btn delete" title="Raum löschen" onclick="deleteRoom('${room.id}')">🗑</button>
             </td>
         `;
         
         tbody.appendChild(tr);
     });
+    
+    document.getElementById('stat-total').textContent = rooms.length;
+    document.getElementById('stat-active').textContent = totalActiveUsers;
 }
 
 window.clearRoom = async function(id) {
-    if(confirm('Canvas wirklich leeren?')) {
+    if(confirm('Möchtest du dieses Board wirklich komplett leeren? (Dies kann nicht rückgängig gemacht werden)')) {
         try {
             await fetch(`/api/admin/rooms/${id}/clear`, {
                 method: 'POST',
@@ -116,15 +123,16 @@ window.clearRoom = async function(id) {
 }
 
 window.deleteRoom = async function(id) {
-    if(confirm('Raum wirklich löschen?')) {
+    if(confirm('Möchtest du diesen Raum wirklich löschen? Alle Nutzer werden rausgeworfen.')) {
         try {
-            await fetch(`/api/admin/rooms/${id}`, {
+            const res = await fetch(`/api/admin/rooms/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (!res.ok) throw new Error('Delete failed');
             loadRooms();
         } catch(e) {
-            alert('Fehler beim Löschen');
+            alert('Fehler beim Löschen des Raumes.');
         }
     }
 }
@@ -174,7 +182,7 @@ window.showQr = async function(slug) {
         const title = document.getElementById('admin-qr-title');
         
         container.innerHTML = svg;
-        title.textContent = 'QR Code für ' + slug;
+        title.textContent = 'Beitreten: ' + slug;
         modal.classList.remove('hidden');
     } catch(e) {
         alert('QR Code konnte nicht geladen werden');

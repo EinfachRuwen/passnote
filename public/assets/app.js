@@ -1,27 +1,14 @@
-// --- DOM ---
-const board = document.getElementById('board');
-const overlay = document.getElementById('overlay');
-const ctx = board.getContext('2d');
-const oCtx = overlay.getContext('2d');
-const toolbar = document.getElementById('toolbar');
-const statusInd = document.getElementById('status');
-const userCountEl = document.getElementById('user-count');
-const qrModal = document.getElementById('qr-modal');
-const textInput = document.getElementById('text-input');
-
-// --- URL Params ---
 // Globaler Schutz vor iOS Text-Selection und Gesten
 document.addEventListener('touchstart', function(e) {
     if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
-        e.preventDefault(); // Blockiert Scrollen, Markieren und Safari-Gesten absolut zuverlässig
+        e.preventDefault(); 
     }
 }, { passive: false });
 
-// Helper, der sowohl Click (Desktop) als auch Pointerdown (iOS) fängt
 function onAction(selector, callback) {
     document.querySelectorAll(selector).forEach(function(el) {
         el.addEventListener('pointerdown', function(e) {
-            e.preventDefault(); // Verhindert Doppel-Ausführung
+            e.preventDefault();
             callback.call(this, e);
         });
         el.addEventListener('click', function(e) {
@@ -32,244 +19,233 @@ function onAction(selector, callback) {
 
 const urlParams = new URLSearchParams(window.location.search);
 const roomSlug = urlParams.get('room');
-const roomPass = urlParams.get('password');
-if (!roomSlug) window.location.href = '/';
-
-// --- State ---
-let ws;
-let isConnected = false;
-let myColor = '#1A1A2E';
+let roomPass = urlParams.get('password');
+let myUsername = localStorage.getItem('passnote_username') || '';
 let myUserId = null;
+let ws = null;
+let isConnected = false;
 
-let currentTool = 'pen';
-let currentColor = '#1A1A2E';
-let baseWidth = 3;
+// DOM Elements
+const usernameModal = document.getElementById('username-modal');
+const usernameInput = document.getElementById('username-input');
+const btnJoin = document.getElementById('btn-join');
+const passwordModal = document.getElementById('password-modal');
+const passInput = document.getElementById('room-password');
+const passError = document.getElementById('password-error');
+const chatUi = document.getElementById('chat-ui');
+const chatHistory = document.getElementById('chat-history');
+const activeUsersList = document.getElementById('active-users-list');
+const roomNameDisplay = document.getElementById('room-name-display');
+const panicScreen = document.getElementById('panic-screen');
 
+const cBoard = document.getElementById('composer-board');
+const cCtx = cBoard.getContext('2d', { alpha: false });
+const cOverlay = document.getElementById('composer-overlay');
+const oCtx = cOverlay.getContext('2d');
+
+let composerStrokes = [];
+let erasedStrokes = new Set();
 let isDrawing = false;
-let activePointerId = null;
-let activePointerType = null;
 let currentStrokeId = null;
 let currentPoints = [];
 let lastSentPoint = null;
-let lastCursorSent = 0;
+let activePointerId = null;
+let activePointerType = null;
 
-const localStrokes = [];
-const erasedStrokes = new Set();
-let myStrokeStack = [];
-const remoteStrokes = new Map();
-const remoteCursors = new Map();
-let activeTextState = null;
-let myLaserPos = null;
+let currentColor = '#E2E8F0';
+let baseWidth = 5;
+let currentTool = 'pen';
 
-// --- Helpers ---
+if (myUsername) usernameInput.value = myUsername;
+
+// Helpers
 function generateUUID() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
 }
 
-// --- Canvas resize ---
-function resize() {
-    board.width = window.innerWidth;
-    board.height = window.innerHeight;
-    overlay.width = window.innerWidth;
-    overlay.height = window.innerHeight;
-    redrawBoard();
-}
-window.addEventListener('resize', resize);
-resize();
-
-// --- Draw Logic ---
-function drawStroke(context, stroke) {
-    if (stroke.tool === 'text' && stroke.text) {
-        context.save();
-        context.font = (stroke.fontSize || 24) + 'px sans-serif';
-        context.fillStyle = stroke.color;
-        context.textBaseline = 'top';
-        context.globalCompositeOperation = 'source-over';
-        var lines = stroke.text.split('\n');
-        var lineHeight = (stroke.fontSize || 24) * 1.3;
-        lines.forEach(function(line, i) {
-            context.fillText(line, stroke.x * board.width, stroke.y * board.height + i * lineHeight);
-        });
-        context.restore();
-        return;
-    }
-
-    if (!stroke.points || stroke.points.length === 0) return;
-
-    context.save();
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-
-    if (stroke.tool === 'eraser') {
-        context.globalCompositeOperation = 'destination-out';
-        context.strokeStyle = 'rgba(0,0,0,1)';
-        context.lineWidth = (stroke.width || 3) * 3;
-    } else {
-        context.globalCompositeOperation = 'source-over';
-        context.strokeStyle = stroke.color || '#000';
-        context.lineWidth = stroke.width || 3;
-    }
-
-    context.beginPath();
-    context.moveTo(stroke.points[0].x * board.width, stroke.points[0].y * board.height);
-
-    if (stroke.points.length === 1) {
-        context.lineTo(stroke.points[0].x * board.width + 0.1, stroke.points[0].y * board.height);
-    } else {
-        for (var i = 1; i < stroke.points.length - 1; i++) {
-            var p1 = stroke.points[i];
-            var p2 = stroke.points[i + 1];
-            var midX = (p1.x + p2.x) / 2;
-            var midY = (p1.y + p2.y) / 2;
-            context.quadraticCurveTo(
-                p1.x * board.width, p1.y * board.height,
-                midX * board.width, midY * board.height
-            );
-        }
-        var last = stroke.points[stroke.points.length - 1];
-        context.lineTo(last.x * board.width, last.y * board.height);
-    }
-    context.stroke();
-    context.restore();
+function resizeComposer() {
+    const container = document.getElementById('composer-container');
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    
+    // Scale for Retina
+    const dpr = window.devicePixelRatio || 1;
+    cBoard.width = w * dpr;
+    cBoard.height = h * dpr;
+    cOverlay.width = w * dpr;
+    cOverlay.height = h * dpr;
+    cCtx.scale(dpr, dpr);
+    oCtx.scale(dpr, dpr);
+    
+    redrawComposer();
 }
 
-function redrawBoard() {
-    ctx.clearRect(0, 0, board.width, board.height);
-    for (var i = 0; i < localStrokes.length; i++) {
-        var s = localStrokes[i];
-        if (!erasedStrokes.has(s.id)) drawStroke(ctx, s);
-    }
+window.addEventListener('resize', resizeComposer);
+
+// Init
+if (!roomSlug) {
+    alert("Kein Raum angegeben!");
+} else {
+    roomNameDisplay.textContent = roomSlug;
+    usernameInput.focus();
 }
 
-// --- Overlay Render Loop ---
-function renderOverlay() {
-    oCtx.clearRect(0, 0, overlay.width, overlay.height);
-    var now = Date.now();
-
-    remoteStrokes.forEach(function(stroke) { drawStroke(oCtx, stroke); });
-
-    if (isDrawing && currentPoints.length > 0) {
-        drawStroke(oCtx, { color: currentColor, width: baseWidth, tool: currentTool, points: currentPoints });
-    }
-
-    // Eigener Laser
-    if (typeof myLaserPos !== 'undefined' && myLaserPos && now - myLaserPos.timestamp < 3000) {
-        var px = myLaserPos.x * overlay.width;
-        var py = myLaserPos.y * overlay.height;
-        oCtx.save();
-        oCtx.beginPath();
-        oCtx.arc(px, py, 5, 0, Math.PI * 2);
-        oCtx.fillStyle = 'red';
-        oCtx.shadowColor = 'red';
-        oCtx.shadowBlur = 12;
-        oCtx.fill();
-        oCtx.restore();
-    }
-
-    remoteCursors.forEach(function(cursor, id) {
-        if (now - cursor.timestamp > 3000) { remoteCursors.delete(id); return; }
-        cursor.currX += (cursor.targetX - cursor.currX) * 0.3;
-        cursor.currY += (cursor.targetY - cursor.currY) * 0.3;
-        var px = cursor.currX * overlay.width;
-        var py = cursor.currY * overlay.height;
-        oCtx.save();
-        if (cursor.type === 'laser') {
-            oCtx.beginPath();
-            oCtx.arc(px, py, 5, 0, Math.PI * 2);
-            oCtx.fillStyle = 'red';
-            oCtx.shadowColor = 'red';
-            oCtx.shadowBlur = 12;
-            oCtx.fill();
-        } else {
-            oCtx.beginPath();
-            oCtx.arc(px, py, 6, 0, Math.PI * 2);
-            oCtx.fillStyle = cursor.color || '#000';
-            oCtx.fill();
-            oCtx.strokeStyle = '#fff';
-            oCtx.lineWidth = 2;
-            oCtx.stroke();
-        }
-        oCtx.restore();
-    });
-
-    requestAnimationFrame(renderOverlay);
-}
-requestAnimationFrame(renderOverlay);
-
-// --- Text Tool ---
-function finalizeText() {
-    if (!activeTextState) return;
-    var text = textInput.value.trim();
-    if (text) {
-        var strokeId = activeTextState.id;
-        var fontSize = baseWidth * 8;
-        var strokeObj = {
-            id: strokeId, userId: myUserId, color: currentColor,
-            width: baseWidth, tool: 'text', text: text,
-            x: activeTextState.x, y: activeTextState.y, fontSize: fontSize, points: []
-        };
-        localStrokes.push(strokeObj);
-        myStrokeStack.push(strokeId);
-        redrawBoard();
-        sendMsg({ type: 'stroke_start', id: strokeId, color: currentColor,
-            width: baseWidth, tool: 'text', text: text,
-            x: activeTextState.x, y: activeTextState.y, fontSize: fontSize });
-    }
-    textInput.value = '';
-    textInput.classList.remove('active');
-    activeTextState = null;
-}
-textInput.addEventListener('blur', finalizeText);
-textInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finalizeText(); }
+btnJoin.addEventListener('click', () => {
+    myUsername = usernameInput.value.trim() || 'Anon';
+    localStorage.setItem('passnote_username', myUsername);
+    usernameModal.classList.add('hidden');
+    connectWs();
+});
+usernameInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter') btnJoin.click();
 });
 
-// --- Pointer Events auf OVERLAY ---
-overlay.style.cursor = 'crosshair';
-overlay.style.touchAction = 'none';
+// WebSocket Logik
+function connectWs() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws?room=${roomSlug}`;
+    ws = new WebSocket(wsUrl);
 
-overlay.addEventListener('pointerdown', function(e) {
-    if (activeTextState) { 
-        finalizeText(); 
-        // Kein return hier! Wenn der User klickt, soll der neue Klick direkt verarbeitet werden (z.B. neuer Strich oder neues Textfeld)
+    ws.onopen = () => {
+        isConnected = true;
+        sendMsg({ type: 'auth', password: roomPass || '', username: myUsername });
+    };
+
+    ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        handleMessage(msg);
+    };
+
+    ws.onclose = () => {
+        isConnected = false;
+        setTimeout(connectWs, 3000); // Reconnect
+    };
+}
+
+function sendMsg(msg) {
+    if (isConnected && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
     }
+}
 
-    var rect = overlay.getBoundingClientRect();
-    var clientX = e.clientX - rect.left;
-    var clientY = e.clientY - rect.top;
+function handleMessage(msg) {
+    switch (msg.type) {
+        case 'welcome':
+            myUserId = msg.userId;
+            passwordModal.classList.add('hidden');
+            chatUi.classList.remove('hidden');
+            resizeComposer();
+            renderActiveUsers(msg.usersList);
+            if (msg.canvas && msg.canvas.chatHistory) {
+                msg.canvas.chatHistory.forEach(appendChatMessage);
+            }
+            break;
+            
+        case 'error':
+            if (msg.code === 'WRONG_PASSWORD') {
+                passwordModal.classList.remove('hidden');
+                passError.textContent = 'Falsches Passwort!';
+                passError.classList.remove('hidden');
+            } else {
+                alert('Fehler: ' + msg.code);
+            }
+            break;
 
-    if (currentTool === 'text') {
-        var x = clientX / rect.width;
-        var y = clientY / rect.height;
-        var fontSize = baseWidth * 8;
-        activeTextState = { x: x, y: y, id: generateUUID() };
-        textInput.style.left = clientX + 'px';
-        textInput.style.top = clientY + 'px';
-        textInput.style.color = currentColor;
-        textInput.style.fontSize = fontSize + 'px';
-        textInput.classList.add('active');
-        setTimeout(function() { textInput.focus(); }, 10);
-        return;
+        case 'active_users':
+            renderActiveUsers(msg.usersList);
+            break;
+
+        case 'chat_message':
+            appendChatMessage(msg);
+            break;
     }
+}
 
+document.getElementById('btn-submit-password').addEventListener('click', () => {
+    roomPass = passInput.value;
+    connectWs();
+});
+
+function renderActiveUsers(users) {
+    activeUsersList.innerHTML = '';
+    users.forEach(u => {
+        const el = document.createElement('div');
+        el.className = 'user-bubble';
+        el.style.backgroundColor = u.color;
+        el.textContent = u.username.charAt(0).toUpperCase();
+        el.title = u.username;
+        activeUsersList.appendChild(el);
+    });
+}
+
+function appendChatMessage(msg) {
+    const isMe = msg.userId === myUserId;
+    const wrap = document.createElement('div');
+    wrap.className = `chat-message-wrap ${isMe ? 'mine' : 'theirs'}`;
+    
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    
+    const header = document.createElement('div');
+    header.className = 'chat-author';
+    header.textContent = msg.username;
+    header.style.color = msg.color;
+    bubble.appendChild(header);
+    
+    // Create a mini canvas to display the message
+    const cvs = document.createElement('canvas');
+    // Normalize rendering aspect ratio based on sender's aspect ratio
+    const width = 250;
+    const height = width * (msg.aspectRatio || 0.4);
+    cvs.width = width * 2; // Retina
+    cvs.height = height * 2;
+    cvs.style.width = width + 'px';
+    cvs.style.height = height + 'px';
+    const ctx = cvs.getContext('2d');
+    ctx.scale(2, 2);
+    
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Draw all strokes
+    if (msg.strokes) {
+        msg.strokes.forEach(s => {
+            drawStrokeBase(ctx, s, width, height);
+        });
+    }
+    
+    bubble.appendChild(cvs);
+    
+    const time = document.createElement('div');
+    time.className = 'chat-time';
+    const d = new Date(msg.timestamp);
+    time.textContent = d.getHours() + ':' + d.getMinutes().toString().padStart(2, '0');
+    bubble.appendChild(time);
+    
+    wrap.appendChild(bubble);
+    chatHistory.appendChild(wrap);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+// Composer Drawing Logic
+function getCoordinates(e) {
+    const rect = cOverlay.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    return { x, y, rect };
+}
+
+cOverlay.addEventListener('pointerdown', function(e) {
     if (activePointerId !== null) {
-        // Ignoriere weitere Pointer (z.B. Handballen), wenn wir schon zeichnen
         if (e.pointerType === 'pen' && activePointerType !== 'pen') {
-            // Palm Rejection: Stift hat immer Vorrang. Beende den Palm-Stroke!
             if (isDrawing) {
                 isDrawing = false;
-                sendMsg({ type: 'stroke_end', id: currentStrokeId });
-                var pStroke = null;
-                for (var i = localStrokes.length - 1; i >= 0; i--) {
-                    if (localStrokes[i].id === currentStrokeId) { pStroke = localStrokes[i]; break; }
-                }
-                if (pStroke) drawStroke(ctx, pStroke);
+                var pStroke = composerStrokes[composerStrokes.length - 1];
+                if (pStroke) drawStrokeBase(cCtx, pStroke, cBoard.clientWidth, cBoard.clientHeight);
                 currentPoints = [];
                 currentStrokeId = null;
             }
@@ -281,29 +257,21 @@ overlay.addEventListener('pointerdown', function(e) {
     activePointerId = e.pointerId;
     activePointerType = e.pointerType;
 
-    if (currentTool === 'laser' || currentTool === 'eraser-stroke') {
-        var x = clientX / rect.width;
-        var y = clientY / rect.height;
-        
-        if (currentTool === 'laser') {
-            sendMsg({ type: 'laser', x: x, y: y });
-            lastCursorSent = Date.now();
-            myLaserPos = { x: x, y: y, timestamp: Date.now() };
-        } else if (currentTool === 'eraser-stroke') {
-            var thresholdSq = 0.0005;
-            for (var i = 0; i < localStrokes.length; i++) {
-                var s = localStrokes[i];
-                if (erasedStrokes.has(s.id) || !s.points || s.points.length === 0) continue;
-                for (var j = 0; j < s.points.length; j++) {
-                    var sp = s.points[j];
-                    var sDx = sp.x - x;
-                    var sDy = sp.y - y;
-                    if (sDx*sDx + sDy*sDy < thresholdSq) {
-                        erasedStrokes.add(s.id);
-                        redrawBoard();
-                        sendMsg({ type: 'erase_stroke', strokeId: s.id });
-                        break; // Nur einen Stroke pro Klick löschen
-                    }
+    const { x, y, rect } = getCoordinates(e);
+
+    if (currentTool === 'eraser-stroke') {
+        var thresholdSq = 0.0005;
+        for (var i = 0; i < composerStrokes.length; i++) {
+            var s = composerStrokes[i];
+            if (erasedStrokes.has(s.id) || !s.points) continue;
+            for (var j = 0; j < s.points.length; j++) {
+                var sp = s.points[j];
+                var sDx = sp.x - x;
+                var sDy = sp.y - y;
+                if (sDx*sDx + sDy*sDy < thresholdSq) {
+                    erasedStrokes.add(s.id);
+                    redrawComposer();
+                    break;
                 }
             }
         }
@@ -312,52 +280,38 @@ overlay.addEventListener('pointerdown', function(e) {
 
     isDrawing = true;
     currentStrokeId = generateUUID();
-    myStrokeStack.push(currentStrokeId);
-
-    var actualTool = currentTool;
-    if (e.buttons === 32) actualTool = 'eraser';
-
     var pressure = e.pointerType === 'pen' ? (e.pressure || 0.5) : 0.5;
-    var actualWidth = baseWidth * (0.5 + pressure);
-
-    var point = { x: clientX / rect.width, y: clientY / rect.height, p: pressure };
+    
+    var point = { x, y, p: pressure };
     currentPoints = [point];
     lastSentPoint = point;
 
-    sendMsg({ type: 'stroke_start', id: currentStrokeId, color: currentColor, width: actualWidth, tool: actualTool });
-    localStrokes.push({ id: currentStrokeId, color: currentColor, width: actualWidth, tool: actualTool, points: currentPoints });
-    showToolbar();
+    composerStrokes.push({
+        id: currentStrokeId,
+        color: currentColor,
+        width: baseWidth,
+        points: currentPoints
+    });
 });
 
-overlay.addEventListener('pointermove', function(e) {
+cOverlay.addEventListener('pointermove', function(e) {
     if (activePointerId !== null && e.pointerId !== activePointerId) return;
-
-    var rect = overlay.getBoundingClientRect();
-    var clientX = e.clientX - rect.left;
-    var clientY = e.clientY - rect.top;
-    var x = clientX / rect.width;
-    var y = clientY / rect.height;
-
-    // Eigener Laser updaten (auch wenn nicht gedrückt, aber wenn gedrückt öfter)
-    if (currentTool === 'laser') {
-        myLaserPos = { x: x, y: y, timestamp: Date.now() };
-    }
+    
+    const { x, y, rect } = getCoordinates(e);
 
     if (currentTool === 'eraser-stroke') {
         if (e.buttons > 0 || e.pointerType === 'pen') {
-            // Finde Strokes die nahe am Radierer sind
-            var thresholdSq = 0.0005; // Hit-Radius
-            for (var i = 0; i < localStrokes.length; i++) {
-                var s = localStrokes[i];
-                if (erasedStrokes.has(s.id) || !s.points || s.points.length === 0) continue;
+            var thresholdSq = 0.0005;
+            for (var i = 0; i < composerStrokes.length; i++) {
+                var s = composerStrokes[i];
+                if (erasedStrokes.has(s.id) || !s.points) continue;
                 for (var j = 0; j < s.points.length; j++) {
                     var sp = s.points[j];
                     var sDx = sp.x - x;
                     var sDy = sp.y - y;
                     if (sDx*sDx + sDy*sDy < thresholdSq) {
                         erasedStrokes.add(s.id);
-                        redrawBoard();
-                        sendMsg({ type: 'erase_stroke', strokeId: s.id });
+                        redrawComposer();
                         break;
                     }
                 }
@@ -368,23 +322,13 @@ overlay.addEventListener('pointermove', function(e) {
     if (isDrawing) {
         var dx = (x - lastSentPoint.x) * rect.width;
         var dy = (y - lastSentPoint.y) * rect.height;
-        
-        // Nur Punkte hinzufügen und senden, wenn sich der Stift min. 2 Pixel bewegt hat (verhindert stottern!)
         if (dx * dx + dy * dy > 4) {
             var pressure = e.pointerType === 'pen' ? (e.pressure || 0.5) : 0.5;
-            var point = { x: x, y: y, p: pressure };
+            var point = { x, y, p: pressure };
             currentPoints.push(point);
-            sendMsg({ type: 'stroke_point', id: currentStrokeId, x: x, y: y, p: pressure });
             lastSentPoint = point;
         }
-    } else {
-        var now = Date.now();
-        if (now - lastCursorSent > 50) {
-            lastCursorSent = now;
-            sendMsg({ type: currentTool === 'laser' ? 'laser' : 'cursor', x: x, y: y });
-        }
     }
-    showToolbar();
 });
 
 function endStroke(e) {
@@ -394,157 +338,86 @@ function endStroke(e) {
     
     if (!isDrawing) return;
     isDrawing = false;
-    sendMsg({ type: 'stroke_end', id: currentStrokeId });
     
-    // Anstatt das ganze Board mit 1000en Strichen neu zu zeichnen (was lag verursacht), 
-    // backen wir einfach nur diesen einen neuen Strich in den fertigen Canvas ein! (O(1) statt O(N))
-    var strokeToBake = null;
-    for (var i = localStrokes.length - 1; i >= 0; i--) {
-        if (localStrokes[i].id === currentStrokeId) {
-            strokeToBake = localStrokes[i];
-            break;
-        }
-    }
+    var strokeToBake = composerStrokes[composerStrokes.length - 1];
     if (strokeToBake) {
-        drawStroke(ctx, strokeToBake);
+        drawStrokeBase(cCtx, strokeToBake, cBoard.clientWidth, cBoard.clientHeight);
     }
     
     currentPoints = [];
     currentStrokeId = null;
 }
-overlay.addEventListener('pointerup', endStroke);
-overlay.addEventListener('pointercancel', endStroke);
-overlay.addEventListener('pointerleave', endStroke);
 
-// --- WebSocket ---
-var reconnectDelay = 2000;
+cOverlay.addEventListener('pointerup', endStroke);
+cOverlay.addEventListener('pointercancel', endStroke);
+cOverlay.addEventListener('pointerleave', endStroke);
 
-function connectWS() {
-    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var wsUrl = protocol + '//' + window.location.host + '/ws?room=' + encodeURIComponent(roomSlug);
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = function() {
-        statusInd.className = 'status-indicator connected';
-        isConnected = true;
-        reconnectDelay = 2000;
-        var authMsg = { type: 'auth' };
-        if (roomPass) authMsg.password = roomPass;
-        sendMsg(authMsg);
-    };
-
-    ws.onmessage = function(e) { handleWSMsg(JSON.parse(e.data)); };
-
-    ws.onclose = function() {
-        statusInd.className = 'status-indicator offline';
-        isConnected = false;
-        setTimeout(connectWS, reconnectDelay);
-        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
-    };
+function renderOverlay() {
+    oCtx.clearRect(0, 0, cOverlay.width, cOverlay.height);
+    if (isDrawing && currentPoints.length > 0) {
+        drawStrokeBase(oCtx, {
+            color: currentColor,
+            width: baseWidth,
+            points: currentPoints
+        }, cBoard.clientWidth, cBoard.clientHeight);
+    }
+    requestAnimationFrame(renderOverlay);
 }
-connectWS();
+requestAnimationFrame(renderOverlay);
 
-function sendMsg(msg) {
-    if (isConnected && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
-}
-
-setInterval(function() { sendMsg({ type: 'ping' }); }, 25000);
-
-function handleWSMsg(msg) {
-    switch (msg.type) {
-        case 'welcome':
-            myUserId = msg.userId;
-            myColor = msg.color;
-            userCountEl.textContent = msg.users;
-            if (msg.canvas) {
-                if (msg.canvas.strokes) localStrokes.push.apply(localStrokes, msg.canvas.strokes);
-                if (msg.canvas.erased) msg.canvas.erased.forEach(function(id) { erasedStrokes.add(id); });
-                redrawBoard();
-            }
-            break;
-        case 'error':
-            alert('Fehler: ' + msg.code);
-            window.location.href = '/';
-            break;
-        case 'user_joined':
-        case 'user_left':
-            userCountEl.textContent = msg.users;
-            break;
-        case 'stroke_start':
-            if (msg.tool === 'text') {
-                localStrokes.push({ id: msg.id, color: msg.color, width: msg.width, tool: 'text',
-                    text: msg.text, x: msg.x, y: msg.y, fontSize: msg.fontSize, points: [] });
-                redrawBoard();
-            } else {
-                remoteStrokes.set(msg.id, { color: msg.color, width: msg.width, tool: msg.tool, points: [] });
-            }
-            break;
-        case 'stroke_point':
-            if (remoteStrokes.has(msg.id)) remoteStrokes.get(msg.id).points.push({ x: msg.x, y: msg.y });
-            break;
-        case 'stroke_end':
-            if (remoteStrokes.has(msg.id)) {
-                var stroke = remoteStrokes.get(msg.id);
-                stroke.id = msg.id;
-                localStrokes.push(stroke);
-                remoteStrokes.delete(msg.id);
-                drawStroke(ctx, stroke); // O(1) Einbacken
-            }
-            break;
-        case 'cursor':
-        case 'laser':
-            if (msg.userId === myUserId) break;
-            if (!remoteCursors.has(msg.userId)) {
-                remoteCursors.set(msg.userId, { currX: msg.x, currY: msg.y, targetX: msg.x, targetY: msg.y, timestamp: Date.now() });
-            }
-            var c = remoteCursors.get(msg.userId);
-            c.targetX = msg.x; c.targetY = msg.y;
-            c.type = msg.type; c.timestamp = Date.now();
-            c.color = msg.color || '#000';
-            break;
-        case 'undo':
-            erasedStrokes.add(msg.strokeId);
-            redrawBoard();
-            break;
-        case 'clear':
-            localStrokes.length = 0;
-            erasedStrokes.clear();
-            remoteStrokes.clear();
-            redrawBoard();
-            break;
+function redrawComposer() {
+    cCtx.fillStyle = '#1e293b';
+    cCtx.fillRect(0, 0, cBoard.width, cBoard.height);
+    for (var i = 0; i < composerStrokes.length; i++) {
+        var s = composerStrokes[i];
+        if (!erasedStrokes.has(s.id)) drawStrokeBase(cCtx, s, cBoard.clientWidth, cBoard.clientHeight);
     }
 }
 
-// --- UI ---
-var hideTimeout;
-function showToolbar() {
-    toolbar.classList.remove('hidden-bar');
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(function() { toolbar.classList.add('hidden-bar'); }, 4000);
+function drawStrokeBase(context, stroke, w, h) {
+    if (!stroke.points || stroke.points.length === 0) return;
+    context.strokeStyle = stroke.color;
+    context.fillStyle = stroke.color;
+    
+    if (stroke.points.length === 1) {
+        context.beginPath();
+        context.arc(stroke.points[0].x * w, stroke.points[0].y * h, (stroke.width / 2) * (stroke.points[0].p * 2), 0, Math.PI * 2);
+        context.fill();
+        return;
+    }
+    
+    context.beginPath();
+    context.moveTo(stroke.points[0].x * w, stroke.points[0].y * h);
+    for (var j = 1; j < stroke.points.length - 1; j++) {
+        var cpX = (stroke.points[j].x + stroke.points[j+1].x) / 2;
+        var cpY = (stroke.points[j].y + stroke.points[j+1].y) / 2;
+        context.quadraticCurveTo(stroke.points[j].x * w, stroke.points[j].y * h, cpX * w, cpY * h);
+    }
+    var last = stroke.points[stroke.points.length - 1];
+    context.lineTo(last.x * w, last.y * h);
+    
+    context.lineWidth = stroke.width;
+    context.stroke();
 }
-document.addEventListener('pointermove', function(e) { if (e.clientY < 100) showToolbar(); });
-showToolbar();
 
+// UI Actions
 onAction('.color-btn', function() {
     document.querySelector('.color-btn.active') && document.querySelector('.color-btn.active').classList.remove('active');
     this.classList.add('active');
     currentColor = this.dataset.color;
     currentTool = 'pen';
     updateToolUI();
-    showToolbar();
 });
 
 onAction('.width-btn', function() {
     document.querySelector('.width-btn.active') && document.querySelector('.width-btn.active').classList.remove('active');
     this.classList.add('active');
     baseWidth = parseFloat(this.dataset.width);
-    showToolbar();
 });
 
-onAction('.tool-btn', function() {
+onAction('.tool-btn[data-tool]', function() {
     currentTool = this.dataset.tool;
     updateToolUI();
-    showToolbar();
 });
 
 function updateToolUI() {
@@ -553,33 +426,42 @@ function updateToolUI() {
     if (active) active.classList.add('active');
 }
 
-onAction('#btn-undo', function() {
-    if (myStrokeStack.length > 0) {
-        var strokeId = myStrokeStack.pop();
-        erasedStrokes.add(strokeId);
-        redrawBoard();
-        sendMsg({ type: 'undo' });
+onAction('#btn-clear-composer', function() {
+    composerStrokes = [];
+    erasedStrokes.clear();
+    redrawComposer();
+});
+
+onAction('#btn-send-chat', function() {
+    const validStrokes = composerStrokes.filter(s => !erasedStrokes.has(s.id));
+    if (validStrokes.length === 0) return;
+    
+    const container = document.getElementById('composer-container');
+    const aspectRatio = container.clientHeight / container.clientWidth;
+    
+    sendMsg({
+        type: 'chat_message',
+        strokes: validStrokes,
+        aspectRatio: aspectRatio
+    });
+    
+    composerStrokes = [];
+    erasedStrokes.clear();
+    redrawComposer();
+});
+
+onAction('#btn-exit', function() {
+    window.location.href = '/';
+});
+
+// Panic Mode (2 Finger Doppeltipp)
+let lastTap = 0;
+document.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+        const now = Date.now();
+        if (now - lastTap < 500) {
+            panicScreen.classList.toggle('hidden');
+        }
+        lastTap = now;
     }
 });
-
-onAction('#btn-clear', function() {
-    if (confirm('Wirklich alles löschen?')) sendMsg({ type: 'clear' });
-});
-
-onAction('#btn-fullscreen', function() {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-    else document.exitFullscreen();
-});
-
-onAction('#btn-qr', async function() {
-    try {
-        var res = await fetch('/api/rooms/' + roomSlug + '/qr');
-        var svg = await res.text();
-        document.getElementById('qr-container').innerHTML = svg;
-        document.getElementById('room-code-display').textContent = roomSlug;
-        qrModal.classList.remove('hidden');
-    } catch(e) { alert('QR Code konnte nicht geladen werden.'); }
-});
-
-onAction('#close-qr', function() { qrModal.classList.add('hidden'); });
-onAction('#qr-modal', function(e) { if (e.target === qrModal) qrModal.classList.add('hidden'); });

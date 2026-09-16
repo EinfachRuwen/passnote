@@ -3,63 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PassNote - Board</title>
-    <link rel="stylesheet" href="/assets/style.css?v=6">
+    <title>PassNote</title>
+    <link rel="stylesheet" href="/assets/style.css?v=9">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
-<body class="board-page">
-    <div id="notebook-bg"></div>
-    <canvas id="board"></canvas>
-    <canvas id="overlay"></canvas>
-    <textarea id="text-input" class="hidden-text-input"></textarea>
-    
-    <div id="toolbar" class="toolbar">
-        <div class="tool-group colors">
-            <button class="color-btn active" data-color="#1A1A2E" style="background-color: #1A1A2E;"></button>
-            <button class="color-btn" data-color="#2563EB" style="background-color: #2563EB;"></button>
-            <button class="color-btn" data-color="#DC2626" style="background-color: #DC2626;"></button>
-            <button class="color-btn" data-color="#16A34A" style="background-color: #16A34A;"></button>
-            <button class="color-btn" data-color="#6B7280" style="background-color: #6B7280;"></button>
-        </div>
-        <div class="divider"></div>
-        <div class="tool-group widths">
-            <button class="width-btn" data-width="2" title="Fein"><span class="dot thin"></span></button>
-            <button class="width-btn active" data-width="5" title="Mittel"><span class="dot normal"></span></button>
-            <button class="width-btn" data-width="10" title="Dick"><span class="dot thick"></span></button>
-        </div>
-        <div class="divider"></div>
-        <div class="tool-group tools">
-            <button class="tool-btn active" data-tool="pen" title="Stift">✏️</button>
-            <button class="tool-btn" data-tool="eraser" title="Radierer (Pinsel)">🔲</button>
-            <button class="tool-btn" data-tool="eraser-stroke" title="Strich-Radierer">💥</button>
-            <button class="tool-btn" data-tool="text" title="Text">📝</button>
-            <button class="tool-btn" data-tool="laser" title="Laser">🔴</button>
-        </div>
-        <div class="divider"></div>
-        <div class="tool-group actions">
-            <button id="btn-undo" class="action-btn" title="Rückgängig">↩</button>
-            <button id="btn-clear" class="action-btn" title="Alles löschen">🗑</button>
-        </div>
-        <div class="divider"></div>
-        <div class="tool-group extra">
-            <div class="user-badge" title="Nutzer online">👥 <span id="user-count">1</span></div>
-            <button id="btn-qr" class="action-btn" title="QR Code">QR</button>
-            <button id="btn-fullscreen" class="action-btn" title="Vollbild">⛶</button>
-        </div>
-    </div>
-    
-    <div id="status" class="status-indicator"></div>
+<body class="chat-page">
 
-    <div id="qr-modal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Raum beitreten</h3>
-            <div id="qr-container"></div>
-            <p id="room-code-display"></p>
-            <button id="close-qr" class="primary-btn">Schließen</button>
+    <!-- Username Modal (Start) -->
+    <div id="username-modal" class="modal">
+        <div class="modal-content glass-modal">
+            <h3>Dein Name?</h3>
+            <p>Unter welchem Namen möchtest du mitschreiben?</p>
+            <input type="text" id="username-input" placeholder="z.B. Alex" maxlength="15" autocomplete="off" class="modern-input">
+            <button id="btn-join" class="primary-btn btn-block" style="margin-top: 1rem;">Raum betreten</button>
         </div>
     </div>
 
-    <script src="/assets/app.js?v=7"></script>
+    <!-- Password Modal -->
+    <div id="password-modal" class="modal hidden">
+        <div class="modal-content glass-modal">
+            <h3>Raum Passwort</h3>
+            <input type="password" id="room-password" placeholder="Passwort">
+            <div id="password-error" class="error-message hidden"></div>
+            <button id="btn-submit-password" class="primary-btn btn-block" style="margin-top: 1rem;">Entsperren</button>
+        </div>
+    </div>
+
+    <!-- Main Chat UI -->
+    <div id="chat-ui" class="chat-ui hidden">
+        <!-- Header -->
+        <header class="chat-header">
+            <div class="header-left">
+                <span class="room-badge" id="room-name-display">Room</span>
+            </div>
+            <div class="header-right" id="active-users-list">
+                <!-- User bubbles will appear here -->
+            </div>
+            <button id="btn-exit" class="icon-btn">🚪</button>
+        </header>
+
+        <!-- Chat History -->
+        <main class="chat-history" id="chat-history">
+            <!-- Messages go here -->
+        </main>
+
+        <!-- Composer (Deine Eigene Zone) -->
+        <footer class="chat-composer">
+            <div class="composer-toolbar">
+                <div class="tool-group widths">
+                    <button class="width-btn" data-width="2"><span class="dot thin"></span></button>
+                    <button class="width-btn active" data-width="5"><span class="dot normal"></span></button>
+                    <button class="width-btn" data-width="10"><span class="dot thick"></span></button>
+                </div>
+                <div class="divider"></div>
+                <div class="tool-group tools">
+                    <button class="tool-btn active" data-tool="pen" title="Stift">✏️</button>
+                    <button class="tool-btn" data-tool="eraser-stroke" title="Radierer">💥</button>
+                    <button class="tool-btn" id="btn-clear-composer" title="Alles löschen">🗑</button>
+                </div>
+                <div class="divider"></div>
+                <div class="tool-group colors">
+                    <button class="color-btn active" data-color="#E2E8F0" style="background: #E2E8F0; border-color: #334155;"></button>
+                    <button class="color-btn" data-color="#60A5FA" style="background: #60A5FA"></button>
+                    <button class="color-btn" data-color="#F472B6" style="background: #F472B6"></button>
+                    <button class="color-btn" data-color="#34D399" style="background: #34D399"></button>
+                    <button class="color-btn" data-color="#FBBF24" style="background: #FBBF24"></button>
+                </div>
+            </div>
+            <div class="composer-input-area">
+                <div class="canvas-container" id="composer-container">
+                    <!-- 2 Canvases wie beim Board, aber nur für den Composer -->
+                    <canvas id="composer-board"></canvas>
+                    <canvas id="composer-overlay"></canvas>
+                </div>
+                <button id="btn-send-chat" class="send-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Panic Screen (Fake Wikipedia) -->
+    <div id="panic-screen" class="panic-screen hidden">
+        <iframe src="https://de.wikipedia.org/wiki/Photosynthese" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+
+    <script src="/assets/app.js?v=9"></script>
 </body>
 </html>
