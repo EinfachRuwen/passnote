@@ -34,9 +34,11 @@ RUN npm install --omit=dev
 FROM node:22-alpine AS runner
 
 # Nur Runtime-Bibliotheken, die better-sqlite3 zur Laufzeit braucht
+# su-exec: sicherer User-Wechsel im Entrypoint (ersetzt gosu auf Alpine)
 RUN apk add --no-cache \
     sqlite-libs \
-    libstdc++
+    libstdc++ \
+    su-exec
 
 WORKDIR /app
 
@@ -51,8 +53,9 @@ COPY public/ ./public/
 # (bereits in node:alpine vorhanden, UID 1000) zuweisen
 RUN mkdir -p /app/data && chown -R node:node /app/data
 
-# Als Non-root-User ausführen (Security Best Practice)
-USER node
+# Entrypoint-Script für Permission-Fix bei Bind-Mounts
+COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # HTTP-Port der Anwendung
 EXPOSE 3000
@@ -65,5 +68,6 @@ HEALTHCHECK \
     --start-period=10s \
     CMD wget -qO- http://localhost:3000/health || exit 1
 
-# Anwendung starten (ES Modules, daher direkt node statt npm start)
+# Entrypoint setzt Permissions und wechselt dann zu node-User
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "src/server.js"]

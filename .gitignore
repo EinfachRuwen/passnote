@@ -9,8 +9,9 @@ yarn-error.log*
 .env.local
 .env.production
 
-# Datenbank
-data/
+# Datenbank - Ordner selbst committen (.gitkeep), aber keine DB-Dateien
+data/*
+!data/.gitkeep
 *.db
 *.sqlite
 *.sqlite3
