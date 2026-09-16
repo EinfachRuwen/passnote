@@ -89,7 +89,7 @@ app.get('/health', (req, res) => {
 });
 
 // Static Files - In production you would serve the built frontend here
-app.use(express.static(path.join(__dirname, '../../public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // WS Setup
 setupWsHandler(wss, db, activeRooms);
