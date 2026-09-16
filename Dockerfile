@@ -24,8 +24,8 @@ WORKDIR /app
 # solange sich die Abhängigkeiten nicht ändern
 COPY package.json package-lock.json* ./
 
-# Nur Production-Dependencies installieren und kompilieren
-RUN npm ci --only=production
+# Production-Dependencies installieren und native Addons kompilieren
+RUN npm install --omit=dev
 
 # ─────────────────────────────────────────────────────────────
 # Stage 2: runner
