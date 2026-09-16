@@ -4,6 +4,30 @@ import { getRoomBySlug } from '../db/queries.js';
 
 export function createRoomsRouter(db, activeRooms) {
   const router = Router();
+  
+  // Normaler Nutzer erstellt einen temporären Raum
+  router.post('/', async (req, res) => {
+    try {
+      const slug = (await import('../utils/slug.js')).generateSlug();
+      const { v4: uuidv4 } = await import('uuid');
+      const { createRoom } = await import('../db/queries.js');
+      
+      const roomId = uuidv4();
+      const room = createRoom(db, {
+        id: roomId,
+        slug,
+        name: null,
+        type: 'temporary',
+        passwordHash: null,
+        maxUsers: parseInt(process.env.MAX_USERS_DEFAULT || '50')
+      });
+      
+      res.json({ success: true, slug: room.slug });
+    } catch (err) {
+      console.error('Error creating public room:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
 
   router.get('/:slug/info', (req, res) => {
     const { slug } = req.params;

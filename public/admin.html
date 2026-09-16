@@ -28,14 +28,14 @@
             <section class="admin-section">
                 <h3>Neuen Raum erstellen</h3>
                 <form id="create-room-form" class="create-room-form">
-                    <input type="text" id="new-slug" placeholder="Slug (optional)">
-                    <input type="text" id="new-name" placeholder="Name (optional)">
-                    <select id="new-type">
+                    <input type="text" id="new-slug" name="slug" placeholder="Slug (optional)">
+                    <input type="text" id="new-name" name="name" placeholder="Name (optional)">
+                    <select id="new-type" name="type">
                         <option value="temporary">Temporär</option>
                         <option value="permanent">Permanent</option>
                     </select>
-                    <input type="password" id="new-password" placeholder="Passwort (optional)">
-                    <input type="number" id="new-max-users" placeholder="Max Nutzer" value="50">
+                    <input type="password" id="new-password" name="password" placeholder="Passwort (optional)">
+                    <input type="number" id="new-max-users" name="maxUsers" placeholder="Max Nutzer" value="50">
                     <button type="submit" class="primary-btn">Erstellen</button>
                 </form>
             </section>

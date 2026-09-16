@@ -11,13 +11,29 @@ if (token) {
     showDashboard();
 }
 
-loginForm.addEventListener('submit', (e) => {
+loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    // Simulate login for frontend only
-    // In reality this would fetch /api/admin/login
-    token = 'mock_token_' + passInput.value;
-    sessionStorage.setItem('admin_token', token);
-    showDashboard();
+    try {
+        const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: passInput.value })
+        });
+        
+        if (!res.ok) {
+            loginError.classList.remove('hidden');
+            return;
+        }
+        
+        const data = await res.json();
+        token = data.token;
+        sessionStorage.setItem('admin_token', token);
+        loginError.classList.add('hidden');
+        showDashboard();
+    } catch (err) {
+        console.error(err);
+        loginError.classList.remove('hidden');
+    }
 });
 
 logoutBtn.addEventListener('click', () => {
@@ -31,30 +47,29 @@ function showDashboard() {
     loginView.classList.add('hidden');
     dashboardView.classList.remove('hidden');
     loadRooms();
-    setInterval(loadRooms, 10000);
+    if (!window.pollInterval) {
+        window.pollInterval = setInterval(loadRooms, 10000);
+    }
 }
 
 async function loadRooms() {
     if (!token) return;
     
-    // Mock data for frontend demonstration
-    const rooms = [
-        { slug: 'violet-hawk-42', name: 'Mathe Klasse 9', type: 'permanent', users: 12, lastActivity: 'Vor 2 Min', created: 'Gestern' },
-        { slug: 'blue-bear-11', name: '', type: 'temporary', users: 0, lastActivity: 'Vor 2 Std', created: 'Vor 2 Std' }
-    ];
-    
-    renderRooms(rooms);
-    /* In reality:
     try {
         const res = await fetch('/api/admin/rooms', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        
+        if (res.status === 401) {
+            logoutBtn.click();
+            return;
+        }
+        
         const data = await res.json();
-        renderRooms(data.rooms);
+        renderRooms(data);
     } catch(e) {
         console.error(e);
     }
-    */
 }
 
 function renderRooms(rooms) {
@@ -64,19 +79,21 @@ function renderRooms(rooms) {
     rooms.forEach(room => {
         const tr = document.createElement('tr');
         
+        const createdDate = new Date(room.created_at).toLocaleString();
+        const lastActivityDate = new Date(room.last_active_at).toLocaleString();
+        
         tr.innerHTML = `
             <td>
                 <strong>${room.name || '-'}</strong><br>
                 <small class="text-gray">${room.slug}</small>
             </td>
             <td><span class="badge ${room.type}">${room.type}</span></td>
-            <td>${room.users}</td>
-            <td>${room.lastActivity}</td>
-            <td>${room.created}</td>
+            <td>${room.activeUsers}</td>
+            <td>${lastActivityDate}</td>
+            <td>${createdDate}</td>
             <td class="action-btns">
-                <button class="btn-icon" title="QR Code" onclick="showQr('${room.slug}')">📱</button>
-                <button class="btn-icon" title="Clear Board" onclick="clearRoom('${room.slug}')">🧹</button>
-                <button class="btn-icon" title="Löschen" onclick="deleteRoom('${room.slug}')">🗑</button>
+                <button class="btn-icon" title="Clear Board" onclick="clearRoom('${room.id}')">🧹</button>
+                <button class="btn-icon" title="Löschen" onclick="deleteRoom('${room.id}')">🗑</button>
             </td>
         `;
         
@@ -84,23 +101,86 @@ function renderRooms(rooms) {
     });
 }
 
-function showQr(slug) {
-    alert('Zeige QR für ' + slug);
-}
-
-function clearRoom(slug) {
+window.clearRoom = async function(id) {
     if(confirm('Canvas wirklich leeren?')) {
-        alert('Cleared: ' + slug);
+        try {
+            await fetch(`/api/admin/rooms/${id}/clear`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadRooms();
+        } catch(e) {
+            alert('Fehler beim Leeren');
+        }
     }
 }
 
-function deleteRoom(slug) {
+window.deleteRoom = async function(id) {
     if(confirm('Raum wirklich löschen?')) {
-        alert('Deleted: ' + slug);
+        try {
+            await fetch(`/api/admin/rooms/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadRooms();
+        } catch(e) {
+            alert('Fehler beim Löschen');
+        }
     }
 }
 
-document.getElementById('create-room-form').addEventListener('submit', (e) => {
+document.getElementById('create-room-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('Raum wird erstellt...');
+    const formData = new FormData(e.target);
+    
+    const payload = {
+        slug: formData.get('slug') || undefined,
+        name: formData.get('name') || undefined,
+        type: formData.get('type'),
+        password: formData.get('password') || undefined,
+        maxUsers: formData.get('maxUsers') ? parseInt(formData.get('maxUsers')) : undefined
+    };
+    
+    try {
+        const res = await fetch('/api/admin/rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+            const err = await res.json();
+            alert('Fehler: ' + (err.error || 'Unbekannt'));
+            return;
+        }
+        
+        e.target.reset();
+        loadRooms();
+    } catch (err) {
+        alert('Konnte Raum nicht erstellen');
+    }
+});
+
+window.showQr = async function(slug) {
+    try {
+        const res = await fetch(`/api/rooms/${slug}/qr`);
+        if (!res.ok) throw new Error();
+        const svg = await res.text();
+        const modal = document.getElementById('admin-qr-modal');
+        const container = document.getElementById('admin-qr-container');
+        const title = document.getElementById('admin-qr-title');
+        
+        container.innerHTML = svg;
+        title.textContent = 'QR Code für ' + slug;
+        modal.classList.remove('hidden');
+    } catch(e) {
+        alert('QR Code konnte nicht geladen werden');
+    }
+}
+
+document.getElementById('admin-close-qr')?.addEventListener('click', () => {
+    document.getElementById('admin-qr-modal').classList.add('hidden');
 });

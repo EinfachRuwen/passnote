@@ -32,6 +32,8 @@
             </div>
             <div id="error-message" class="error-message hidden"></div>
             <button type="submit" id="join-btn" class="primary-btn">Raum betreten</button>
+            <div style="text-align: center; margin-top: 15px; margin-bottom: 15px; color: #64748b;">oder</div>
+            <button type="button" id="create-btn" class="secondary-btn" style="width: 100%; padding: 14px; border-radius: 12px; background: #e2e8f0; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; color: #1e293b;">Neuen Raum erstellen</button>
         </form>
     </div>
     
@@ -106,6 +108,23 @@
                 url += `&password=${encodeURIComponent(passInput.value)}`;
             }
             window.location.href = url;
+        });
+
+        document.getElementById('create-btn').addEventListener('click', async () => {
+            try {
+                const btn = document.getElementById('create-btn');
+                btn.textContent = 'Erstelle...';
+                btn.disabled = true;
+                const res = await fetch('/api/rooms', { method: 'POST' });
+                if (!res.ok) throw new Error('Fehler');
+                const data = await res.json();
+                window.location.href = `/board.html?room=${encodeURIComponent(data.slug)}`;
+            } catch (err) {
+                showError('Konnte keinen Raum erstellen');
+                const btn = document.getElementById('create-btn');
+                btn.textContent = 'Neuen Raum erstellen';
+                btn.disabled = false;
+            }
         });
     </script>
 </body>

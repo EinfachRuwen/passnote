@@ -45,6 +45,11 @@ import { createAdminRouter } from './api/admin.js';
 import { setupWsHandler } from './ws/handler.js';
 
 const app = express();
+
+// Trust Proxy (für Cloudflare Tunnel / Cosmos Cloud)
+// Verhindert ERR_ERL_UNEXPECTED_X_FORWARDED_FOR bei express-rate-limit
+app.set('trust proxy', 1);
+
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
