@@ -432,3 +432,19 @@ body, .toolbar, .tool-group, .modal-content {
     -webkit-user-select: auto;
     user-select: auto;
 }
+
+/* Verhindert Geste-Interferenzen und Text-Markierung absolut radikal */
+* {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+}
+
+#text-input {
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+}
+
+.toolbar, .toolbar * {
+    touch-action: none !important;
+}

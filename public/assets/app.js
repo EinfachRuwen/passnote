@@ -247,7 +247,11 @@ overlay.addEventListener('pointerdown', function(e) {
             if (isDrawing) {
                 isDrawing = false;
                 sendMsg({ type: 'stroke_end', id: currentStrokeId });
-                redrawBoard();
+                var pStroke = null;
+                for (var i = localStrokes.length - 1; i >= 0; i--) {
+                    if (localStrokes[i].id === currentStrokeId) { pStroke = localStrokes[i]; break; }
+                }
+                if (pStroke) drawStroke(ctx, pStroke);
                 currentPoints = [];
                 currentStrokeId = null;
             }
@@ -375,7 +379,20 @@ function endStroke(e) {
     if (!isDrawing) return;
     isDrawing = false;
     sendMsg({ type: 'stroke_end', id: currentStrokeId });
-    redrawBoard();
+    
+    // Anstatt das ganze Board mit 1000en Strichen neu zu zeichnen (was lag verursacht), 
+    // backen wir einfach nur diesen einen neuen Strich in den fertigen Canvas ein! (O(1) statt O(N))
+    var strokeToBake = null;
+    for (var i = localStrokes.length - 1; i >= 0; i--) {
+        if (localStrokes[i].id === currentStrokeId) {
+            strokeToBake = localStrokes[i];
+            break;
+        }
+    }
+    if (strokeToBake) {
+        drawStroke(ctx, strokeToBake);
+    }
+    
     currentPoints = [];
     currentStrokeId = null;
 }
@@ -455,7 +472,7 @@ function handleWSMsg(msg) {
                 stroke.id = msg.id;
                 localStrokes.push(stroke);
                 remoteStrokes.delete(msg.id);
-                redrawBoard();
+                drawStroke(ctx, stroke); // O(1) Einbacken
             }
             break;
         case 'cursor':
