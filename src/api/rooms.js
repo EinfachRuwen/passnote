@@ -62,7 +62,7 @@ export function createRoomsRouter(db, activeRooms) {
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['x-forwarded-host'] || req.get('host');
-    const boardUrl = `${protocol}://${host}/?room=${slug}`;
+    const boardUrl = `${protocol}://${host}/board.html?room=${slug}`;
 
     try {
       const qrSvg = await QRCode.toString(boardUrl, {

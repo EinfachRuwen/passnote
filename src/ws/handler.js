@@ -160,7 +160,11 @@ export function setupWsHandler(wss, db, activeRooms) {
                 color: msg.color || clientInfo.color,
                 width: msg.width || 2,
                 tool: msg.tool || 'pen',
-                points: []
+                points: [],
+                text: msg.text,
+                x: msg.x,
+                y: msg.y,
+                fontSize: msg.fontSize
               };
               roomState.strokes.push(newStroke);
             } else if (msg.type === 'stroke_point') {

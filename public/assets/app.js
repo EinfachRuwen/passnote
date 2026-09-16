@@ -62,7 +62,22 @@ function smoothPoints(points) {
 
 // Drawing Functions
 function drawStrokeOnCtx(context, stroke) {
-    if (stroke.points.length === 0) return;
+    if (stroke.tool === 'text' && stroke.text) {
+        context.font = `${stroke.fontSize}px sans-serif`;
+        context.fillStyle = stroke.color;
+        context.textBaseline = 'top';
+        context.globalCompositeOperation = 'source-over';
+        
+        // Handle multi-line text
+        const lines = stroke.text.split('\n');
+        const lineHeight = stroke.fontSize * 1.2;
+        for (let i = 0; i < lines.length; i++) {
+            context.fillText(lines[i], stroke.x * board.width, (stroke.y * board.height) + (i * lineHeight));
+        }
+        return;
+    }
+
+    if (!stroke.points || stroke.points.length === 0) return;
     
     context.beginPath();
     context.strokeStyle = stroke.tool === 'eraser' ? '#FAFAF8' : stroke.color;
@@ -70,13 +85,9 @@ function drawStrokeOnCtx(context, stroke) {
     context.lineCap = 'round';
     context.lineJoin = 'round';
     
-    // Notebook margin offset logic can be skipped because lines are relative to 0,0 anyway
-    // but eraser needs to clear cleanly. Realistically eraser works differently on a collaborative board
-    // but here we just draw background color.
-    // Better eraser: globalCompositeOperation = 'destination-out'
     if (stroke.tool === 'eraser') {
         context.globalCompositeOperation = 'destination-out';
-        context.lineWidth = stroke.width * 2; // thicker eraser
+        context.lineWidth = stroke.width * 2;
     } else {
         context.globalCompositeOperation = 'source-over';
     }
@@ -170,8 +181,88 @@ requestAnimationFrame(renderOverlay);
 let lastSentPoint = null;
 let lastCursorSent = 0;
 
+const textInput = document.getElementById('text-input');
+let activeTextState = null; // { x, y, id }
+
+function finalizeText() {
+    if (!activeTextState) return;
+    const text = textInput.value.trim();
+    if (text) {
+        const strokeId = activeTextState.id;
+        const fontSize = baseWidth * 8; // baseWidth 1.5 -> 12px, 3 -> 24px, 6 -> 48px
+        
+        const strokeObj = {
+            id: strokeId,
+            userId: myUserId,
+            color: currentColor,
+            width: baseWidth,
+            tool: 'text',
+            text: text,
+            x: activeTextState.x,
+            y: activeTextState.y,
+            fontSize: fontSize
+        };
+
+        // Local
+        localStrokes.push(strokeObj);
+        myStrokeStack.push(strokeId);
+        redrawBoard();
+
+        // Remote
+        sendMsg({
+            type: 'stroke_start',
+            id: strokeId,
+            color: currentColor,
+            width: baseWidth,
+            tool: 'text',
+            text: text,
+            x: activeTextState.x,
+            y: activeTextState.y,
+            fontSize: fontSize
+        });
+    }
+    
+    textInput.value = '';
+    textInput.classList.remove('active');
+    activeTextState = null;
+}
+
+textInput.addEventListener('blur', finalizeText);
+textInput.addEventListener('keydown', (e) => {
+    // Shift+Enter um Zeilenumbruch zu machen, normales Enter schließt ab
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        finalizeText();
+    }
+});
+
 board.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'touch') return;
+    e.preventDefault();
+    
+    // Wenn wir schon Text tippen und woanders klicken, finalize!
+    if (activeTextState) {
+        finalizeText();
+        return;
+    }
+
+    if (currentTool === 'text') {
+        const x = e.offsetX / board.width;
+        const y = e.offsetY / board.height;
+        const fontSize = baseWidth * 8;
+        
+        activeTextState = { x, y, id: generateUUID() };
+        
+        textInput.style.left = `${e.offsetX}px`;
+        textInput.style.top = `${e.offsetY}px`;
+        textInput.style.color = currentColor;
+        textInput.style.fontSize = `${fontSize}px`;
+        textInput.classList.add('active');
+        
+        // Timeout needed for focus because of pointerdown intercept
+        setTimeout(() => textInput.focus(), 10);
+        return;
+    }
+
     isDrawing = true;
     currentStrokeId = generateUUID();
     myStrokeStack.push(currentStrokeId);
@@ -208,8 +299,7 @@ board.addEventListener('pointerdown', (e) => {
 });
 
 board.addEventListener('pointermove', (e) => {
-    if (e.pointerType === 'touch') return;
-    
+    e.preventDefault();
     const x = e.offsetX / board.width;
     const y = e.offsetY / board.height;
 
