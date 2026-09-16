@@ -5,22 +5,24 @@
 # 3. docker compose pull
 # 4. docker compose up -d
 # 5. Logs: docker compose logs -f
+#
+# Datenbank-Backup:
+#   docker run --rm -v passnote_data:/data -v $(pwd):/backup alpine \
+#     tar czf /backup/passnote-backup.tar.gz -C /data .
 
 name: passnote
 
 services:
   app:
-    # Image von GitHub Container Registry (nach CI/CD-Build verfügbar)
-    # Eigenen GitHub-Usernamen eintragen oder lokal bauen:
-    # image: passnote:local  (nach: docker build -t passnote:local .)
-    image: ghcr.io/EinfachRuwen/passnote:latest
+    # Image von GitHub Container Registry (nach CI/CD-Build verfuegbar)
+    image: ghcr.io/einfachruwen/passnote:latest
     restart: unless-stopped
     ports:
-      # Host-Port:Container-Port - bei Cloudflare Tunnel kein direkter Zugriff nötig
+      # Host-Port:Container-Port - bei Cloudflare Tunnel kein direkter Zugriff noetig
       - "3000:3000"
     volumes:
-      # SQLite-Datenbank persistieren (Bind-Mount ins data/-Verzeichnis)
-      - ./data:/app/data
+      # Named Volume - Docker verwaltet Permissions automatisch (kein Permission-Problem)
+      - passnote_data:/app/data
     environment:
       # !! HIER das Admin-Passwort eintragen !!
       - ADMIN_PASSWORD=aendern!
@@ -33,7 +35,7 @@ services:
     deploy:
       resources:
         limits:
-          # Ressourcenlimits für den Raspberry Pi 4
+          # Ressourcenlimits fuer den Raspberry Pi 4
           memory: 256M
           cpus: '0.5'
     healthcheck:
@@ -43,8 +45,13 @@ services:
       retries: 3
       start_period: 10s
     logging:
-      # Log-Rotation: max. 3 Dateien à 10 MB
+      # Log-Rotation: max. 3 Dateien a 10 MB
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+# Named Volume - von Docker verwaltet, kein Permission-Problem
+# Datenpfad auf dem Pi: /var/lib/docker/volumes/passnote_data/_data/
+volumes:
+  passnote_data:
