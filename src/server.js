@@ -93,8 +93,24 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Static Files - In production you would serve the built frontend here
-app.use(express.static(path.join(__dirname, '../public')));
+// Static Files
+// HTML-Dateien werden nie gecacht, JS/CSS/Assets prüfen immer beim Server nach
+app.use(express.static(path.join(__dirname, '../public'), {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      // HTML nie cachen - der Browser muss immer die aktuelle Version laden
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else {
+      // JS/CSS: Browser darf cachen, prüft aber immer per ETag/Last-Modified nach
+      // Bei Änderung bekommt er sofort die neue Version
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // WS Setup
 setupWsHandler(wss, db, activeRooms);
