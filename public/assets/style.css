@@ -164,7 +164,6 @@ canvas {
 
 #overlay {
     z-index: 2;
-    pointer-events: none;
 }
 
 /* Toolbar */
