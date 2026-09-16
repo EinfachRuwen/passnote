@@ -244,6 +244,8 @@ textInput.addEventListener('keydown', (e) => {
 });
 
 board.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); // Sehr wichtig für iOS Safari, verhindert scrollen/panning
+    
     // Wenn wir schon Text tippen und woanders klicken, finalize!
     if (activeTextState) {
         finalizeText();
@@ -304,6 +306,7 @@ board.addEventListener('pointerdown', (e) => {
 });
 
 board.addEventListener('pointermove', (e) => {
+    e.preventDefault(); // Sehr wichtig für iOS Safari
     const x = e.offsetX / board.width;
     const y = e.offsetY / board.height;
 
