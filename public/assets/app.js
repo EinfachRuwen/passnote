@@ -103,6 +103,10 @@ function handleJoin() {
 }
 
 btnJoin.addEventListener('click', handleJoin);
+btnJoin.addEventListener('pointerdown', function(e) {
+    e.preventDefault(); // Prevents iOS from swallowing the click when keyboard is open
+    handleJoin();
+});
 
 usernameInput.addEventListener('keydown', e => {
     if(e.key === 'Enter') handleJoin();
