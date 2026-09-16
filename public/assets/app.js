@@ -51,7 +51,14 @@ resize();
 
 // Math helpers
 function generateUUID() {
-    return crypto.randomUUID();
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // Fallback für non-HTTPS (z.B. lokales Netzwerk via HTTP)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 function smoothPoints(points) {
@@ -237,8 +244,6 @@ textInput.addEventListener('keydown', (e) => {
 });
 
 board.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    
     // Wenn wir schon Text tippen und woanders klicken, finalize!
     if (activeTextState) {
         finalizeText();
@@ -299,7 +304,6 @@ board.addEventListener('pointerdown', (e) => {
 });
 
 board.addEventListener('pointermove', (e) => {
-    e.preventDefault();
     const x = e.offsetX / board.width;
     const y = e.offsetY / board.height;
 
