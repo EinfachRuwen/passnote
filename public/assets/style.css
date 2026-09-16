@@ -909,3 +909,19 @@ body, .toolbar, .tool-group, .modal-content {
     background: white;
     z-index: 9999;
 }
+
+/* === TEXT TOOL === */
+#text-input-overlay {
+    position: absolute;
+    background: transparent;
+    border: 1px dashed #3b82f6;
+    color: white;
+    font-family: -apple-system, sans-serif;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    white-space: pre-wrap;
+    z-index: 10;
+}

@@ -7,16 +7,6 @@ document.addEventListener('touchstart', function(e) {
 
 function onAction(selector, callback) {
     document.querySelectorAll(selector).forEach(function(el) {
-        // Verhindere, dass der globale Touchstart-Blocker das Event frisst
-        el.addEventListener('touchstart', function(e) {
-            e.stopPropagation();
-        }, { passive: false });
-        
-        el.addEventListener('pointerdown', function(e) {
-            e.preventDefault();
-            callback.call(el, e); // Verwende el explizit als this
-        });
-        
         el.addEventListener('click', function(e) {
             callback.call(el, e);
         });
@@ -105,14 +95,17 @@ if (!roomSlug) {
     usernameInput.focus();
 }
 
-btnJoin.addEventListener('click', () => {
+function handleJoin() {
     myUsername = usernameInput.value.trim() || 'Anon';
     localStorage.setItem('passnote_username', myUsername);
     usernameModal.classList.add('hidden');
     connectWs();
-});
+}
+
+btnJoin.addEventListener('click', handleJoin);
+
 usernameInput.addEventListener('keydown', e => {
-    if(e.key === 'Enter') btnJoin.click();
+    if(e.key === 'Enter') handleJoin();
 });
 
 // WebSocket Logik
@@ -252,6 +245,27 @@ function getCoordinates(e) {
     return { x, y, rect };
 }
 
+let textInput = null;
+
+function finishText() {
+    if (textInput && textInput.value.trim() !== '') {
+        composerStrokes.push({
+            id: generateUUID(),
+            type: 'text',
+            text: textInput.value,
+            color: currentColor,
+            width: baseWidth,
+            x: parseFloat(textInput.dataset.x),
+            y: parseFloat(textInput.dataset.y)
+        });
+        redrawComposer();
+    }
+    if (textInput) {
+        textInput.remove();
+        textInput = null;
+    }
+}
+
 cOverlay.addEventListener('pointerdown', function(e) {
     if (activePointerId !== null) {
         if (e.pointerType === 'pen' && activePointerType !== 'pen') {
@@ -272,11 +286,57 @@ cOverlay.addEventListener('pointerdown', function(e) {
 
     const { x, y, rect } = getCoordinates(e);
 
+    if (currentTool === 'text') {
+        finishText(); // close existing if any
+        
+        textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.id = 'text-input-overlay';
+        textInput.style.left = (x * rect.width) + 'px';
+        textInput.style.top = (y * rect.height - (baseWidth * 3)) + 'px'; // Center roughly
+        textInput.style.fontSize = (baseWidth * 6) + 'px';
+        textInput.style.fontWeight = 'bold';
+        textInput.style.color = currentColor;
+        textInput.dataset.x = x;
+        textInput.dataset.y = y;
+        
+        document.getElementById('composer-container').appendChild(textInput);
+        
+        setTimeout(() => {
+            textInput.focus();
+        }, 50);
+        
+        textInput.addEventListener('keydown', function(evt) {
+            if (evt.key === 'Enter') {
+                finishText();
+            }
+        });
+        
+        textInput.addEventListener('blur', function() {
+            finishText();
+        });
+        
+        return;
+    }
+
     if (currentTool === 'eraser-stroke') {
         var thresholdSq = 0.0005;
         for (var i = 0; i < composerStrokes.length; i++) {
             var s = composerStrokes[i];
-            if (erasedStrokes.has(s.id) || !s.points) continue;
+            if (erasedStrokes.has(s.id)) continue;
+            
+            if (s.type === 'text') {
+                var sDx = s.x - x;
+                var sDy = s.y - y;
+                if (sDx*sDx + sDy*sDy < 0.005) { // Größere Hitbox für Text
+                    erasedStrokes.add(s.id);
+                    redrawComposer();
+                    break;
+                }
+                continue;
+            }
+            
+            if (!s.points) continue;
             for (var j = 0; j < s.points.length; j++) {
                 var sp = s.points[j];
                 var sDx = sp.x - x;
@@ -317,7 +377,20 @@ cOverlay.addEventListener('pointermove', function(e) {
             var thresholdSq = 0.0005;
             for (var i = 0; i < composerStrokes.length; i++) {
                 var s = composerStrokes[i];
-                if (erasedStrokes.has(s.id) || !s.points) continue;
+                if (erasedStrokes.has(s.id)) continue;
+                
+                if (s.type === 'text') {
+                    var sDx = s.x - x;
+                    var sDy = s.y - y;
+                    if (sDx*sDx + sDy*sDy < 0.005) {
+                        erasedStrokes.add(s.id);
+                        redrawComposer();
+                        break;
+                    }
+                    continue;
+                }
+                
+                if (!s.points) continue;
                 for (var j = 0; j < s.points.length; j++) {
                     var sp = s.points[j];
                     var sDx = sp.x - x;
@@ -388,6 +461,16 @@ function redrawComposer() {
 }
 
 function drawStrokeBase(context, stroke, w, h) {
+    if (stroke.type === 'text') {
+        context.fillStyle = stroke.color;
+        // Basewidth 2 = 12px, 5 = 30px, 10 = 60px
+        var fontSize = stroke.width * 6;
+        context.font = "bold " + fontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        context.textBaseline = 'top';
+        context.fillText(stroke.text, stroke.x * w, stroke.y * h);
+        return;
+    }
+
     if (!stroke.points || stroke.points.length === 0) return;
     context.strokeStyle = stroke.color;
     context.fillStyle = stroke.color;
@@ -446,11 +529,13 @@ onAction('#btn-clear-composer', function() {
 });
 
 onAction('#btn-send-chat', function() {
+    if (typeof finishText === 'function') finishText();
+    
     const validStrokes = composerStrokes.filter(s => !erasedStrokes.has(s.id));
     if (validStrokes.length === 0) return;
     
     const container = document.getElementById('composer-container');
-    const aspectRatio = container.clientHeight / container.clientWidth;
+    const aspectRatio = container.clientHeight / Math.max(1, container.clientWidth);
     
     sendMsg({
         type: 'chat_message',
