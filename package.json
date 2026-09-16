@@ -1,0 +1,23 @@
+{
+  "name": "passnote",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Kollaboratives iPad-Whiteboard für den Schulunterricht",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0",
+    "node-cron": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  }
+}

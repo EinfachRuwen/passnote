@@ -1,0 +1,79 @@
+# ============================================================
+# PassNote – GitHub Actions Workflow
+# Baut das Docker-Image für linux/arm64 und linux/amd64 und
+# pusht es zu GitHub Container Registry (ghcr.io)
+# ============================================================
+
+name: Build & Push Docker Image
+
+on:
+  # Automatisch bei Push auf den main-Branch
+  push:
+    branches:
+      - main
+    # Und bei versionierten Tags (z.B. v1.0.0)
+    tags:
+      - 'v*'
+  # Manueller Auslöser über die GitHub-Actions-Oberfläche
+  workflow_dispatch:
+
+# Minimale Berechtigungen: Code lesen + Packages schreiben
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Repository auschecken
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. QEMU einrichten – nötig für Cross-Compilation zu ARM64
+      - name: QEMU einrichten (ARM64-Unterstützung)
+        uses: docker/setup-qemu-action@v3
+
+      # 3. Docker Buildx aktivieren (Multi-Plattform-Builds)
+      - name: Docker Buildx einrichten
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Bei ghcr.io anmelden (Token wird automatisch von GitHub bereitgestellt)
+      - name: Bei ghcr.io anmelden
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 5. Docker-Tags und Labels automatisch generieren:
+      #    - :main          → Push auf main-Branch
+      #    - :1.0.0         → Push von Tag v1.0.0
+      #    - :1.0           → Push von Tag v1.0.0 (major.minor)
+      #    - :latest        → Push auf den Default-Branch (main)
+      - name: Docker Meta-Tags generieren
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # 6. Image bauen und zu ghcr.io pushen
+      #    GitHub Actions Cache wird genutzt, um Builds zu beschleunigen
+      - name: Docker Image bauen und pushen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Beide Plattformen: ARM64 für Raspberry Pi 4, AMD64 für Server/lokal
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions Cache für schnellere Folge-Builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

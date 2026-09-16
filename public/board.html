@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PassNote - Board</title>
+    <link rel="stylesheet" href="/assets/style.css">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body class="board-page">
+    <div id="notebook-bg"></div>
+    <canvas id="board"></canvas>
+    <canvas id="overlay"></canvas>
+    
+    <div id="toolbar" class="toolbar">
+        <div class="tool-group colors">
+            <button class="color-btn active" data-color="#1A1A2E" style="background-color: #1A1A2E;"></button>
+            <button class="color-btn" data-color="#2563EB" style="background-color: #2563EB;"></button>
+            <button class="color-btn" data-color="#DC2626" style="background-color: #DC2626;"></button>
+            <button class="color-btn" data-color="#16A34A" style="background-color: #16A34A;"></button>
+            <button class="color-btn" data-color="#6B7280" style="background-color: #6B7280;"></button>
+        </div>
+        <div class="divider"></div>
+        <div class="tool-group widths">
+            <button class="width-btn" data-width="1.5"><span class="dot thin"></span></button>
+            <button class="width-btn active" data-width="3"><span class="dot normal"></span></button>
+            <button class="width-btn" data-width="6"><span class="dot thick"></span></button>
+        </div>
+        <div class="divider"></div>
+        <div class="tool-group tools">
+            <button class="tool-btn active" data-tool="pen" title="Stift">✏️</button>
+            <button class="tool-btn" data-tool="eraser" title="Radierer">🔲</button>
+            <button class="tool-btn" data-tool="laser" title="Laser">🔴</button>
+        </div>
+        <div class="divider"></div>
+        <div class="tool-group actions">
+            <button id="btn-undo" class="action-btn" title="Rückgängig">↩</button>
+            <button id="btn-clear" class="action-btn" title="Alles löschen">🗑</button>
+        </div>
+        <div class="divider"></div>
+        <div class="tool-group extra">
+            <div class="user-badge" title="Nutzer online">👥 <span id="user-count">1</span></div>
+            <button id="btn-qr" class="action-btn" title="QR Code">QR</button>
+            <button id="btn-fullscreen" class="action-btn" title="Vollbild">⛶</button>
+        </div>
+    </div>
+    
+    <div id="status" class="status-indicator"></div>
+
+    <div id="qr-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Raum beitreten</h3>
+            <div id="qr-container"></div>
+            <p id="room-code-display"></p>
+            <button id="close-qr" class="primary-btn">Schließen</button>
+        </div>
+    </div>
+
+    <script src="/assets/app.js"></script>
+</body>
+</html>

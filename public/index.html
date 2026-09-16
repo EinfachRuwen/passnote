@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PassNote - Dein digitales Klassenzimmer</title>
+    <link rel="stylesheet" href="/assets/style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1E293B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body class="landing-page">
+    <div class="landing-container">
+        <div class="logo">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                <path d="M2 2l7.586 7.586"></path>
+                <circle cx="11" cy="11" r="2"></circle>
+            </svg>
+            <h1>PassNote</h1>
+        </div>
+        <p class="tagline">Dein digitales Klassenzimmer</p>
+        
+        <form id="join-form" class="join-form">
+            <div class="input-group">
+                <input type="text" id="room-code" placeholder="Raum-Code (z.B. violet-hawk-42)" required autocomplete="off" spellcheck="false">
+            </div>
+            <div class="input-group hidden" id="password-group">
+                <input type="password" id="room-password" placeholder="Passwort">
+            </div>
+            <div id="error-message" class="error-message hidden"></div>
+            <button type="submit" id="join-btn" class="primary-btn">Raum betreten</button>
+        </form>
+    </div>
+    
+    <a href="/admin.html" class="admin-link">Admin &rarr;</a>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(console.error);
+        }
+
+        const form = document.getElementById('join-form');
+        const roomInput = document.getElementById('room-code');
+        const passGroup = document.getElementById('password-group');
+        const passInput = document.getElementById('room-password');
+        const errorMsg = document.getElementById('error-message');
+        const joinBtn = document.getElementById('join-btn');
+
+        let needsPassword = false;
+
+        roomInput.addEventListener('input', () => {
+            errorMsg.classList.add('hidden');
+            passGroup.classList.add('hidden');
+            needsPassword = false;
+            joinBtn.textContent = 'Raum prüfen...';
+            joinBtn.disabled = true;
+            clearTimeout(window.checkTimeout);
+            window.checkTimeout = setTimeout(checkRoom, 500);
+            if(roomInput.value.trim() === '') {
+                joinBtn.textContent = 'Raum betreten';
+                joinBtn.disabled = false;
+            }
+        });
+
+        async function checkRoom() {
+            const slug = roomInput.value.trim();
+            if (!slug) return;
+            
+            try {
+                const res = await fetch(`/api/rooms/${slug}/info`);
+                if (!res.ok) throw new Error('Nicht gefunden');
+                const data = await res.json();
+                
+                if (data.exists) {
+                    if (data.hasPassword) {
+                        needsPassword = true;
+                        passGroup.classList.remove('hidden');
+                    }
+                    joinBtn.textContent = 'Raum betreten';
+                    joinBtn.disabled = false;
+                } else {
+                    showError('Raum nicht gefunden');
+                }
+            } catch (err) {
+                showError('Raum nicht gefunden');
+            }
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.remove('hidden');
+            joinBtn.textContent = 'Raum betreten';
+            joinBtn.disabled = true;
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const slug = roomInput.value.trim();
+            if (!slug) return;
+            
+            let url = `/board.html?room=${encodeURIComponent(slug)}`;
+            if (needsPassword && passInput.value) {
+                url += `&password=${encodeURIComponent(passInput.value)}`;
+            }
+            window.location.href = url;
+        });
+    </script>
+</body>
+</html>

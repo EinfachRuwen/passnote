@@ -1,0 +1,50 @@
+# PassNote - Docker Compose
+# Verwendung:
+# 1. ADMIN_PASSWORD unten eintragen (Zeile mit "aendern!")
+# 2. DEIN_GITHUB_USER durch deinen GitHub-Nutzernamen ersetzen
+# 3. docker compose pull
+# 4. docker compose up -d
+# 5. Logs: docker compose logs -f
+
+name: passnote
+
+services:
+  app:
+    # Image von GitHub Container Registry (nach CI/CD-Build verfügbar)
+    # Eigenen GitHub-Usernamen eintragen oder lokal bauen:
+    # image: passnote:local  (nach: docker build -t passnote:local .)
+    image: ghcr.io/DEIN_GITHUB_USER/passnote:latest
+    restart: unless-stopped
+    ports:
+      # Host-Port:Container-Port - bei Cloudflare Tunnel kein direkter Zugriff nötig
+      - "3000:3000"
+    volumes:
+      # SQLite-Datenbank persistieren (Bind-Mount ins data/-Verzeichnis)
+      - ./data:/app/data
+    environment:
+      # !! HIER das Admin-Passwort eintragen !!
+      - ADMIN_PASSWORD=aendern!
+      - PORT=3000
+      - DB_PATH=/app/data/passnote.db
+      - MAX_USERS_DEFAULT=50
+      # 7 Tage Inaktivitaet in Millisekunden
+      - ROOM_TTL_MS=604800000
+      - CLEANUP_INTERVAL_HOURS=24
+    deploy:
+      resources:
+        limits:
+          # Ressourcenlimits für den Raspberry Pi 4
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      # Log-Rotation: max. 3 Dateien à 10 MB
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

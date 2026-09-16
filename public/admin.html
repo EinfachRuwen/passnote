@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassNote Admin</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="admin-page">
+    <div id="login-view" class="admin-view">
+        <div class="admin-card">
+            <h2>Admin Login</h2>
+            <form id="admin-login-form">
+                <input type="password" id="admin-password" placeholder="Admin Passwort" required>
+                <div id="login-error" class="error-message hidden"></div>
+                <button type="submit" class="primary-btn">Anmelden</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="admin-view hidden">
+        <header class="admin-header">
+            <h2>PassNote Admin</h2>
+            <button id="logout-btn" class="secondary-btn">Logout</button>
+        </header>
+
+        <main class="admin-main">
+            <section class="admin-section">
+                <h3>Neuen Raum erstellen</h3>
+                <form id="create-room-form" class="create-room-form">
+                    <input type="text" id="new-slug" placeholder="Slug (optional)">
+                    <input type="text" id="new-name" placeholder="Name (optional)">
+                    <select id="new-type">
+                        <option value="temporary">Temporär</option>
+                        <option value="permanent">Permanent</option>
+                    </select>
+                    <input type="password" id="new-password" placeholder="Passwort (optional)">
+                    <input type="number" id="new-max-users" placeholder="Max Nutzer" value="50">
+                    <button type="submit" class="primary-btn">Erstellen</button>
+                </form>
+            </section>
+
+            <section class="admin-section">
+                <h3>Aktive Räume</h3>
+                <div class="table-container">
+                    <table id="rooms-table">
+                        <thead>
+                            <tr>
+                                <th>Name / Slug</th>
+                                <th>Typ</th>
+                                <th>Online</th>
+                                <th>Letzte Aktivität</th>
+                                <th>Erstellt</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rooms-tbody">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="admin-qr-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="admin-qr-title">QR Code</h3>
+            <div id="admin-qr-container"></div>
+            <button id="admin-close-qr" class="primary-btn">Schließen</button>
+        </div>
+    </div>
+
+    <script src="/assets/admin.js"></script>
+</body>
+</html>

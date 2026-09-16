@@ -1,0 +1,46 @@
+# Dateien/Verzeichnisse, die nicht in den Docker Build-Kontext kopiert werden
+
+# Abhängigkeiten (werden im Container neu installiert)
+node_modules/
+
+# Datenbank-Dateien (werden via Volume gemountet)
+data/
+
+# Git-Metadaten
+.git/
+.gitignore
+
+# GitHub Actions
+.github/
+
+# Entwicklungs-/Test-Dateien
+*.test.js
+*.spec.js
+tests/
+test/
+coverage/
+.nyc_output/
+
+# Umgebungsvariablen (niemals in Image einbauen!)
+.env
+.env.*
+!.env.example
+
+# Editor-Konfiguration
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Docker-Dateien selbst (nicht nötig im Image)
+Dockerfile
+docker-compose.yml
+
+# README und Dokumentation
+README.md
+CHANGELOG.md
+LICENSE
