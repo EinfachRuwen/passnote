@@ -13,7 +13,7 @@ services:
     # Image von GitHub Container Registry (nach CI/CD-Build verfügbar)
     # Eigenen GitHub-Usernamen eintragen oder lokal bauen:
     # image: passnote:local  (nach: docker build -t passnote:local .)
-    image: ghcr.io/DEIN_GITHUB_USER/passnote:latest
+    image: ghcr.io/EinfachRuwen/passnote:latest
     restart: unless-stopped
     ports:
       # Host-Port:Container-Port - bei Cloudflare Tunnel kein direkter Zugriff nötig
