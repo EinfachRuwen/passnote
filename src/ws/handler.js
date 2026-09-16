@@ -87,7 +87,7 @@ export function setupWsHandler(wss, db, activeRooms) {
                 aspectRatio: msg.aspectRatio
             };
             
-            roomState.chatHistory.push(newMsg);
+            console.log('Received chat_message with', msg.strokes.length, 'strokes. Points in first stroke:', msg.strokes[0] ? msg.strokes[0].points.length : 0); roomState.chatHistory.push(newMsg);
             
             // Limit history to last 50 messages to save memory
             if (roomState.chatHistory.length > 50) {

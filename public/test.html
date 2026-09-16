@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="bubble" style="background: #0f172a; padding: 20px;"></div>
+<script>
+function drawStrokeBase(context, stroke, w, h) {
+    if (!stroke.points || stroke.points.length === 0) return;
+    context.strokeStyle = stroke.color;
+    context.fillStyle = stroke.color;
+    
+    if (stroke.points.length === 1) {
+        context.beginPath();
+        context.arc(stroke.points[0].x * w, stroke.points[0].y * h, (stroke.width / 2) * (stroke.points[0].p * 2), 0, Math.PI * 2);
+        context.fill();
+        return;
+    }
+    
+    context.beginPath();
+    context.moveTo(stroke.points[0].x * w, stroke.points[0].y * h);
+    for (var j = 1; j < stroke.points.length - 1; j++) {
+        var cpX = (stroke.points[j].x + stroke.points[j+1].x) / 2;
+        var cpY = (stroke.points[j].y + stroke.points[j+1].y) / 2;
+        context.quadraticCurveTo(stroke.points[j].x * w, stroke.points[j].y * h, cpX * w, cpY * h);
+    }
+    var last = stroke.points[stroke.points.length - 1];
+    context.lineTo(last.x * w, last.y * h);
+    
+    context.lineWidth = stroke.width;
+    context.stroke();
+}
+
+const msg = {
+    aspectRatio: 0.5,
+    strokes: [
+        { color: "#F472B6", width: 5, points: [
+            {x: 0.1, y: 0.5, p: 0.5},
+            {x: 0.5, y: 0.1, p: 0.5},
+            {x: 0.9, y: 0.5, p: 0.5}
+        ]}
+    ]
+};
+
+const cvs = document.createElement('canvas');
+const width = 400;
+const height = width * (msg.aspectRatio || 0.4);
+
+cvs.width = width * 2;
+cvs.height = height * 2;
+cvs.style.width = width + 'px';
+cvs.style.height = height + 'px';
+cvs.style.background = '#0f172a';
+
+const ctx = cvs.getContext('2d');
+ctx.scale(2, 2);
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+msg.strokes.forEach(s => drawStrokeBase(ctx, s, width, height));
+
+document.getElementById('bubble').appendChild(cvs);
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
-// Globaler Schutz vor iOS Text-Selection und Gesten
+// Globaler Schutz vor iOS Text-Selection (nur wenn man auf dem Canvas zeichnet)
 document.addEventListener('touchstart', function(e) {
-    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+    if (e.target.tagName === 'CANVAS') {
         e.preventDefault(); 
     }
 }, { passive: false });
