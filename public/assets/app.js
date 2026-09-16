@@ -26,6 +26,8 @@ let currentColor = '#1A1A2E';
 let baseWidth = 3;
 
 let isDrawing = false;
+let activePointerId = null;
+let activePointerType = null;
 let currentStrokeId = null;
 let currentPoints = [];
 let lastSentPoint = null;
@@ -37,6 +39,7 @@ let myStrokeStack = [];
 const remoteStrokes = new Map();
 const remoteCursors = new Map();
 let activeTextState = null;
+let myLaserPos = null;
 
 // --- Helpers ---
 function generateUUID() {
@@ -135,6 +138,20 @@ function renderOverlay() {
         drawStroke(oCtx, { color: currentColor, width: baseWidth, tool: currentTool, points: currentPoints });
     }
 
+    // Eigener Laser
+    if (typeof myLaserPos !== 'undefined' && myLaserPos && now - myLaserPos.timestamp < 3000) {
+        var px = myLaserPos.x * overlay.width;
+        var py = myLaserPos.y * overlay.height;
+        oCtx.save();
+        oCtx.beginPath();
+        oCtx.arc(px, py, 5, 0, Math.PI * 2);
+        oCtx.fillStyle = 'red';
+        oCtx.shadowColor = 'red';
+        oCtx.shadowBlur = 12;
+        oCtx.fill();
+        oCtx.restore();
+    }
+
     remoteCursors.forEach(function(cursor, id) {
         if (now - cursor.timestamp > 3000) { remoteCursors.delete(id); return; }
         cursor.currX += (cursor.targetX - cursor.currX) * 0.3;
@@ -200,7 +217,10 @@ overlay.style.touchAction = 'none';
 overlay.addEventListener('pointerdown', function(e) {
     e.preventDefault();
 
-    if (activeTextState) { finalizeText(); return; }
+    if (activeTextState) { 
+        finalizeText(); 
+        // Kein return hier! Wenn der User klickt, soll der neue Klick direkt verarbeitet werden (z.B. neuer Strich oder neues Textfeld)
+    }
 
     var rect = overlay.getBoundingClientRect();
     var clientX = e.clientX - rect.left;
@@ -217,6 +237,54 @@ overlay.addEventListener('pointerdown', function(e) {
         textInput.style.fontSize = fontSize + 'px';
         textInput.classList.add('active');
         setTimeout(function() { textInput.focus(); }, 10);
+        return;
+    }
+
+    if (activePointerId !== null) {
+        // Ignoriere weitere Pointer (z.B. Handballen), wenn wir schon zeichnen
+        if (e.pointerType === 'pen' && activePointerType !== 'pen') {
+            // Palm Rejection: Stift hat immer Vorrang. Beende den Palm-Stroke!
+            if (isDrawing) {
+                isDrawing = false;
+                sendMsg({ type: 'stroke_end', id: currentStrokeId });
+                redrawBoard();
+                currentPoints = [];
+                currentStrokeId = null;
+            }
+        } else {
+            return;
+        }
+    }
+
+    activePointerId = e.pointerId;
+    activePointerType = e.pointerType;
+
+    if (currentTool === 'laser' || currentTool === 'eraser-stroke') {
+        var x = clientX / rect.width;
+        var y = clientY / rect.height;
+        
+        if (currentTool === 'laser') {
+            sendMsg({ type: 'laser', x: x, y: y });
+            lastCursorSent = Date.now();
+            myLaserPos = { x: x, y: y, timestamp: Date.now() };
+        } else if (currentTool === 'eraser-stroke') {
+            var thresholdSq = 0.0005;
+            for (var i = 0; i < localStrokes.length; i++) {
+                var s = localStrokes[i];
+                if (erasedStrokes.has(s.id) || !s.points || s.points.length === 0) continue;
+                for (var j = 0; j < s.points.length; j++) {
+                    var sp = s.points[j];
+                    var sDx = sp.x - x;
+                    var sDy = sp.y - y;
+                    if (sDx*sDx + sDy*sDy < thresholdSq) {
+                        erasedStrokes.add(s.id);
+                        redrawBoard();
+                        sendMsg({ type: 'erase_stroke', strokeId: s.id });
+                        break; // Nur einen Stroke pro Klick löschen
+                    }
+                }
+            }
+        }
         return;
     }
 
@@ -241,11 +309,41 @@ overlay.addEventListener('pointerdown', function(e) {
 
 overlay.addEventListener('pointermove', function(e) {
     e.preventDefault();
+
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+
     var rect = overlay.getBoundingClientRect();
     var clientX = e.clientX - rect.left;
     var clientY = e.clientY - rect.top;
     var x = clientX / rect.width;
     var y = clientY / rect.height;
+
+    // Eigener Laser updaten (auch wenn nicht gedrückt, aber wenn gedrückt öfter)
+    if (currentTool === 'laser') {
+        myLaserPos = { x: x, y: y, timestamp: Date.now() };
+    }
+
+    if (currentTool === 'eraser-stroke') {
+        if (e.buttons > 0 || e.pointerType === 'pen') {
+            // Finde Strokes die nahe am Radierer sind
+            var thresholdSq = 0.0005; // Hit-Radius
+            for (var i = 0; i < localStrokes.length; i++) {
+                var s = localStrokes[i];
+                if (erasedStrokes.has(s.id) || !s.points || s.points.length === 0) continue;
+                for (var j = 0; j < s.points.length; j++) {
+                    var sp = s.points[j];
+                    var sDx = sp.x - x;
+                    var sDy = sp.y - y;
+                    if (sDx*sDx + sDy*sDy < thresholdSq) {
+                        erasedStrokes.add(s.id);
+                        redrawBoard();
+                        sendMsg({ type: 'erase_stroke', strokeId: s.id });
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     if (isDrawing) {
         var dx = (x - lastSentPoint.x) * rect.width;
@@ -269,7 +367,11 @@ overlay.addEventListener('pointermove', function(e) {
     showToolbar();
 });
 
-function endStroke() {
+function endStroke(e) {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+    activePointerId = null;
+    activePointerType = null;
+    
     if (!isDrawing) return;
     isDrawing = false;
     sendMsg({ type: 'stroke_end', id: currentStrokeId });

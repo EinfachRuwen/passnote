@@ -197,6 +197,14 @@ export function setupWsHandler(wss, db, activeRooms) {
             }
             break;
 
+          case 'erase_stroke':
+            if (msg.strokeId) {
+                roomState.eraserStrokes.add(msg.strokeId);
+                broadcast(roomState, JSON.stringify({ type: 'undo', strokeId: msg.strokeId }));
+                triggerAutoSave(db, room.id, roomState);
+            }
+            break;
+
           case 'clear':
             roomState.strokes = [];
             roomState.eraserStrokes.clear();
