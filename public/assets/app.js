@@ -10,6 +10,26 @@ const qrModal = document.getElementById('qr-modal');
 const textInput = document.getElementById('text-input');
 
 // --- URL Params ---
+// Globaler Schutz vor iOS Text-Selection und Gesten
+document.addEventListener('touchstart', function(e) {
+    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+        e.preventDefault(); // Blockiert Scrollen, Markieren und Safari-Gesten absolut zuverlässig
+    }
+}, { passive: false });
+
+// Helper, der sowohl Click (Desktop) als auch Pointerdown (iOS) fängt
+function onAction(selector, callback) {
+    document.querySelectorAll(selector).forEach(function(el) {
+        el.addEventListener('pointerdown', function(e) {
+            e.preventDefault(); // Verhindert Doppel-Ausführung
+            callback.call(this, e);
+        });
+        el.addEventListener('click', function(e) {
+            callback.call(this, e);
+        });
+    });
+}
+
 const urlParams = new URLSearchParams(window.location.search);
 const roomSlug = urlParams.get('room');
 const roomPass = urlParams.get('password');
@@ -215,8 +235,6 @@ overlay.style.cursor = 'crosshair';
 overlay.style.touchAction = 'none';
 
 overlay.addEventListener('pointerdown', function(e) {
-    e.preventDefault();
-
     if (activeTextState) { 
         finalizeText(); 
         // Kein return hier! Wenn der User klickt, soll der neue Klick direkt verarbeitet werden (z.B. neuer Strich oder neues Textfeld)
@@ -312,8 +330,6 @@ overlay.addEventListener('pointerdown', function(e) {
 });
 
 overlay.addEventListener('pointermove', function(e) {
-    e.preventDefault();
-
     if (activePointerId !== null && e.pointerId !== activePointerId) return;
 
     var rect = overlay.getBoundingClientRect();
@@ -509,32 +525,26 @@ function showToolbar() {
 document.addEventListener('pointermove', function(e) { if (e.clientY < 100) showToolbar(); });
 showToolbar();
 
-document.querySelectorAll('.color-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        document.querySelector('.color-btn.active') && document.querySelector('.color-btn.active').classList.remove('active');
-        btn.classList.add('active');
-        currentColor = btn.dataset.color;
-        currentTool = 'pen';
-        updateToolUI();
-        showToolbar();
-    });
+onAction('.color-btn', function() {
+    document.querySelector('.color-btn.active') && document.querySelector('.color-btn.active').classList.remove('active');
+    this.classList.add('active');
+    currentColor = this.dataset.color;
+    currentTool = 'pen';
+    updateToolUI();
+    showToolbar();
 });
 
-document.querySelectorAll('.width-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        document.querySelector('.width-btn.active') && document.querySelector('.width-btn.active').classList.remove('active');
-        btn.classList.add('active');
-        baseWidth = parseFloat(btn.dataset.width);
-        showToolbar();
-    });
+onAction('.width-btn', function() {
+    document.querySelector('.width-btn.active') && document.querySelector('.width-btn.active').classList.remove('active');
+    this.classList.add('active');
+    baseWidth = parseFloat(this.dataset.width);
+    showToolbar();
 });
 
-document.querySelectorAll('.tool-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        currentTool = btn.dataset.tool;
-        updateToolUI();
-        showToolbar();
-    });
+onAction('.tool-btn', function() {
+    currentTool = this.dataset.tool;
+    updateToolUI();
+    showToolbar();
 });
 
 function updateToolUI() {
@@ -543,7 +553,7 @@ function updateToolUI() {
     if (active) active.classList.add('active');
 }
 
-document.getElementById('btn-undo').addEventListener('click', function() {
+onAction('#btn-undo', function() {
     if (myStrokeStack.length > 0) {
         var strokeId = myStrokeStack.pop();
         erasedStrokes.add(strokeId);
@@ -552,16 +562,16 @@ document.getElementById('btn-undo').addEventListener('click', function() {
     }
 });
 
-document.getElementById('btn-clear').addEventListener('click', function() {
+onAction('#btn-clear', function() {
     if (confirm('Wirklich alles löschen?')) sendMsg({ type: 'clear' });
 });
 
-document.getElementById('btn-fullscreen').addEventListener('click', function() {
+onAction('#btn-fullscreen', function() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen();
     else document.exitFullscreen();
 });
 
-document.getElementById('btn-qr').addEventListener('click', async function() {
+onAction('#btn-qr', async function() {
     try {
         var res = await fetch('/api/rooms/' + roomSlug + '/qr');
         var svg = await res.text();
@@ -571,5 +581,5 @@ document.getElementById('btn-qr').addEventListener('click', async function() {
     } catch(e) { alert('QR Code konnte nicht geladen werden.'); }
 });
 
-document.getElementById('close-qr').addEventListener('click', function() { qrModal.classList.add('hidden'); });
-qrModal.addEventListener('click', function(e) { if (e.target === qrModal) qrModal.classList.add('hidden'); });
+onAction('#close-qr', function() { qrModal.classList.add('hidden'); });
+onAction('#qr-modal', function(e) { if (e.target === qrModal) qrModal.classList.add('hidden'); });
