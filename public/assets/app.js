@@ -209,12 +209,20 @@ function appendChatMessage(msg) {
     // Die Chat-Blase nimmt bis zu 80% des Bildschirms ein, max 600px
     const maxBubbleWidth = Math.min(window.innerWidth * 0.8, 600);
     const width = maxBubbleWidth;
-    const height = width * (msg.aspectRatio || 0.4);
+    
+    // CLAMP the aspect ratio to prevent corrupted database messages from blowing up the screen!
+    let safeRatio = msg.aspectRatio;
+    if (typeof safeRatio !== 'number' || isNaN(safeRatio) || safeRatio < 0.05 || safeRatio > 3) {
+        safeRatio = 0.4; // Fallback for corrupted data
+    }
+    const height = width * safeRatio;
     
     cvs.width = width * 2; // Retina Auflösung
     cvs.height = height * 2;
-    cvs.style.width = width + 'px';
-    cvs.style.height = height + 'px';
+    // Removed inline style.width and style.height to allow CSS responsive scaling!
+    cvs.style.width = '100%';
+    cvs.style.maxWidth = width + 'px';
+    cvs.style.height = 'auto'; // Verhindert Aspect-Ratio-Verzerrungen auf iPads!
     const ctx = cvs.getContext('2d');
     ctx.scale(2, 2);
     
@@ -539,7 +547,10 @@ onAction('#btn-send-chat', function() {
     if (validStrokes.length === 0) return;
     
     const container = document.getElementById('composer-container');
-    const aspectRatio = container.clientHeight / Math.max(1, container.clientWidth);
+    let aspectRatio = container.clientHeight / Math.max(1, container.clientWidth);
+    if (aspectRatio < 0.05 || aspectRatio > 3 || isNaN(aspectRatio)) {
+        aspectRatio = 0.4; // Fallback
+    }
     
     sendMsg({
         type: 'chat_message',
