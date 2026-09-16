@@ -202,13 +202,17 @@ overlay.addEventListener('pointerdown', function(e) {
 
     if (activeTextState) { finalizeText(); return; }
 
+    var rect = overlay.getBoundingClientRect();
+    var clientX = e.clientX - rect.left;
+    var clientY = e.clientY - rect.top;
+
     if (currentTool === 'text') {
-        var x = e.offsetX / overlay.width;
-        var y = e.offsetY / overlay.height;
+        var x = clientX / rect.width;
+        var y = clientY / rect.height;
         var fontSize = baseWidth * 8;
         activeTextState = { x: x, y: y, id: generateUUID() };
-        textInput.style.left = e.offsetX + 'px';
-        textInput.style.top = e.offsetY + 'px';
+        textInput.style.left = clientX + 'px';
+        textInput.style.top = clientY + 'px';
         textInput.style.color = currentColor;
         textInput.style.fontSize = fontSize + 'px';
         textInput.classList.add('active');
@@ -226,7 +230,7 @@ overlay.addEventListener('pointerdown', function(e) {
     var pressure = e.pointerType === 'pen' ? (e.pressure || 0.5) : 0.5;
     var actualWidth = baseWidth * (0.5 + pressure);
 
-    var point = { x: e.offsetX / overlay.width, y: e.offsetY / overlay.height, p: pressure };
+    var point = { x: clientX / rect.width, y: clientY / rect.height, p: pressure };
     currentPoints = [point];
     lastSentPoint = point;
 
@@ -237,16 +241,21 @@ overlay.addEventListener('pointerdown', function(e) {
 
 overlay.addEventListener('pointermove', function(e) {
     e.preventDefault();
-    var x = e.offsetX / overlay.width;
-    var y = e.offsetY / overlay.height;
+    var rect = overlay.getBoundingClientRect();
+    var clientX = e.clientX - rect.left;
+    var clientY = e.clientY - rect.top;
+    var x = clientX / rect.width;
+    var y = clientY / rect.height;
 
     if (isDrawing) {
-        var pressure = e.pointerType === 'pen' ? (e.pressure || 0.5) : 0.5;
-        var point = { x: x, y: y, p: pressure };
-        currentPoints.push(point);
-        var dx = (x - lastSentPoint.x) * overlay.width;
-        var dy = (y - lastSentPoint.y) * overlay.height;
-        if (dx * dx + dy * dy > 2) {
+        var dx = (x - lastSentPoint.x) * rect.width;
+        var dy = (y - lastSentPoint.y) * rect.height;
+        
+        // Nur Punkte hinzufügen und senden, wenn sich der Stift min. 2 Pixel bewegt hat (verhindert stottern!)
+        if (dx * dx + dy * dy > 4) {
+            var pressure = e.pointerType === 'pen' ? (e.pressure || 0.5) : 0.5;
+            var point = { x: x, y: y, p: pressure };
+            currentPoints.push(point);
             sendMsg({ type: 'stroke_point', id: currentStrokeId, x: x, y: y, p: pressure });
             lastSentPoint = point;
         }

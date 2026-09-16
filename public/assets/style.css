@@ -417,3 +417,18 @@ th { font-weight: 600; color: #64748B; }
 .hidden-text-input.active {
     display: block;
 }
+
+/* Verhindert Text-Markierung durch Apple Pencil/Maus */
+body, .toolbar, .tool-group, .modal-content {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#text-input {
+    -webkit-user-select: auto;
+    user-select: auto;
+}
