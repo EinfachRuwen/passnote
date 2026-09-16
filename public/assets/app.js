@@ -7,12 +7,18 @@ document.addEventListener('touchstart', function(e) {
 
 function onAction(selector, callback) {
     document.querySelectorAll(selector).forEach(function(el) {
+        // Verhindere, dass der globale Touchstart-Blocker das Event frisst
+        el.addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+        }, { passive: false });
+        
         el.addEventListener('pointerdown', function(e) {
             e.preventDefault();
-            callback.call(this, e);
+            callback.call(el, e); // Verwende el explizit als this
         });
+        
         el.addEventListener('click', function(e) {
-            callback.call(this, e);
+            callback.call(el, e);
         });
     });
 }
@@ -80,6 +86,11 @@ function resizeComposer() {
     cOverlay.height = h * dpr;
     cCtx.scale(dpr, dpr);
     oCtx.scale(dpr, dpr);
+    
+    cCtx.lineCap = 'round';
+    cCtx.lineJoin = 'round';
+    oCtx.lineCap = 'round';
+    oCtx.lineJoin = 'round';
     
     redrawComposer();
 }
@@ -196,12 +207,14 @@ function appendChatMessage(msg) {
     header.style.color = msg.color;
     bubble.appendChild(header);
     
-    // Create a mini canvas to display the message
+    // Chat Bubble Canvas dynamisch an Fensterbreite anpassen (großes Bild!)
     const cvs = document.createElement('canvas');
-    // Normalize rendering aspect ratio based on sender's aspect ratio
-    const width = 250;
+    // Die Chat-Blase nimmt bis zu 80% des Bildschirms ein, max 600px
+    const maxBubbleWidth = Math.min(window.innerWidth * 0.8, 600);
+    const width = maxBubbleWidth;
     const height = width * (msg.aspectRatio || 0.4);
-    cvs.width = width * 2; // Retina
+    
+    cvs.width = width * 2; // Retina Auflösung
     cvs.height = height * 2;
     cvs.style.width = width + 'px';
     cvs.style.height = height + 'px';

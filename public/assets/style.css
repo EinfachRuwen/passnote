@@ -817,10 +817,11 @@ body, .toolbar, .tool-group, .modal-content {
 }
 
 .chat-bubble canvas {
-    background: #fff;
+    background: #0f172a;
     border-radius: 8px;
     max-width: 100%;
     height: auto;
+    border: 1px solid #334155;
 }
 
 .chat-composer {
