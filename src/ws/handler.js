@@ -86,8 +86,14 @@ export function setupWsHandler(wss, db, activeRooms) {
                 strokes: msg.strokes,
                 aspectRatio: msg.aspectRatio
             };
-            
-            console.log('Received chat_message with', msg.strokes.length, 'strokes. Points in first stroke:', msg.strokes[0] ? msg.strokes[0].points.length : 0); roomState.chatHistory.push(newMsg);
+
+            const strokeCount = Array.isArray(msg.strokes) ? msg.strokes.length : 0;
+            const firstStroke = Array.isArray(msg.strokes) ? msg.strokes[0] : null;
+            const firstStrokeDetail = firstStroke?.type === 'text'
+              ? 'text'
+              : (Array.isArray(firstStroke?.points) ? `${firstStroke.points.length} points` : 'no points');
+            console.log('Received chat_message with', strokeCount, 'strokes. First stroke:', firstStrokeDetail);
+            roomState.chatHistory.push(newMsg);
             
             // Limit history to last 50 messages to save memory
             if (roomState.chatHistory.length > 50) {
