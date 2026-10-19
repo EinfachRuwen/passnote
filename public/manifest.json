@@ -1,14 +1,12 @@
 {
-  "name": "PassNote",
-  "short_name": "PassNote",
-  "description": "Kollaboratives Whiteboard für den Unterricht",
+  "name": "Notizen",
+  "short_name": "Notizen",
+  "description": "Mitschrift",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAFAF8",
-  "theme_color": "#1E293B",
-  "orientation": "landscape",
+  "background_color": "#FDFCF8",
+  "theme_color": "#FDFCF8",
   "icons": [
-    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19l7-7 3 3-7 7-3-3z'%3E%3C/path%3E%3Cpath d='M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z'%3E%3C/path%3E%3Cpath d='M2 2l7.586 7.586'%3E%3C/path%3E%3Ccircle cx='11' cy='11' r='2'%3E%3C/circle%3E%3C/svg%3E", "sizes": "192x192", "type": "image/svg+xml" },
-    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19l7-7 3 3-7 7-3-3z'%3E%3C/path%3E%3Cpath d='M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z'%3E%3C/path%3E%3Cpath d='M2 2l7.586 7.586'%3E%3C/path%3E%3Ccircle cx='11' cy='11' r='2'%3E%3C/circle%3E%3C/svg%3E", "sizes": "512x512", "type": "image/svg+xml" }
+    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23FDFCF8'/%3E%3Cpath d='M6 4.5h10a2.5 2.5 0 0 1 2.5 2.5v12.5H8.5A2.5 2.5 0 0 1 6 17z' fill='none' stroke='%231F2A44' stroke-width='1.5'/%3E%3Cpath d='M9.5 9h6M9.5 12h6' stroke='%23C3C7CD' stroke-width='1.2'/%3E%3C/svg%3E", "sizes": "any", "type": "image/svg+xml" }
   ]
 }

@@ -38,7 +38,8 @@ if (ADMIN_PASSWORD === 'passnote-admin') {
   console.warn('WARNUNG: Standard Admin-Passwort in Benutzung. Bitte in .env ändern!');
 }
 
-import { setupDatabase, updateCanvasData } from './db/queries.js';
+import { setupDatabase } from './db/queries.js';
+import { saveAllRooms } from './ws/roomState.js';
 import { startCleanupJob } from './jobs/cleanup.js';
 import { createRoomsRouter } from './api/rooms.js';
 import { createAdminRouter } from './api/admin.js';
@@ -51,7 +52,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1024 * 1024 });
 
 // Global State
 const db = setupDatabase(DB_PATH);
@@ -63,7 +64,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       connectSrc: ["'self'", "ws:", "wss:"], // WebSockets erlauben
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:"]
     },
@@ -74,7 +75,7 @@ app.use(express.json());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 100, // 100 Requests pro IP
+  max: 300, // pro IP – ganze Schulen teilen sich oft eine IP
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -121,25 +122,20 @@ startCleanupJob(db, activeRooms);
 // Graceful Shutdown
 function gracefulShutdown() {
   console.log('Fahre Server herunter...');
-  // Speichere alle aktiven Canvas-States
-  for (const [slug, state] of activeRooms.entries()) {
-    try {
-      const room = db.prepare('SELECT id FROM rooms WHERE slug = ?').get(slug);
-      if (room) {
-        const data = JSON.stringify({ strokes: state.strokes, erased: Array.from(state.eraserStrokes) });
-        updateCanvasData(db, room.id, data);
-        console.log(`Canvas gesichert für: ${slug}`);
-      }
-    } catch (err) {
-      console.error(`Fehler beim Sichern von ${slug}:`, err);
-    }
-  }
-  
+  // Alle offenen Räume sichern, damit kein Zettel verloren geht
+  saveAllRooms(db, activeRooms);
+  activeRooms.clear();
+
+  // Offene WebSockets schließen, sonst wartet server.close() ewig
+  for (const ws of wss.clients) ws.close(1001, 'Server restart');
+  wss.close();
+
   db.close();
   server.close(() => {
     console.log('Server beendet.');
     process.exit(0);
   });
+  setTimeout(() => process.exit(0), 3000).unref();
 }
 
 process.on('SIGTERM', gracefulShutdown);

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { getAllRooms, getRoomById, createRoom, deleteRoom, updateCanvasData } from '../db/queries.js';
 import { generateSlug, isValidSlug } from '../utils/slug.js';
+import { parseNotes, serializeNotes } from '../ws/roomState.js';
 
 const activeAdminTokens = new Set();
 
@@ -104,6 +105,7 @@ export function createAdminRouter(db, activeRooms) {
     // Wenn room aktiv, werfe clients raus
     if (activeRooms.has(room.slug)) {
       const state = activeRooms.get(room.slug);
+      clearTimeout(state.saveTimer);
       for (const [ws, _] of state.clients) {
         ws.send(JSON.stringify({ type: 'error', code: 'ROOM_DELETED' }));
         ws.close();
@@ -118,46 +120,37 @@ export function createAdminRouter(db, activeRooms) {
   router.get('/rooms/:id/canvas', (req, res) => {
     const { id } = req.params;
     const room = getRoomById(db, id);
-    
+
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    let canvasData = room.canvas_data;
-    
     // Bevorzuge In-Memory Daten falls Raum aktiv
-    if (activeRooms.has(room.slug)) {
-      const state = activeRooms.get(room.slug);
-      canvasData = JSON.stringify({ strokes: state.strokes, erased: Array.from(state.eraserStrokes) });
-    }
+    const state = activeRooms.get(room.slug);
+    const notes = state ? state.notes : parseNotes(room.canvas_data);
 
     res.setHeader('Content-Type', 'application/json');
-    res.send(canvasData);
+    res.send(serializeNotes(notes));
   });
 
   router.post('/rooms/:id/clear', (req, res) => {
     const { id } = req.params;
     const room = getRoomById(db, id);
-    
+
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    const emptyCanvas = JSON.stringify({ strokes: [], erased: [] });
-
-    if (activeRooms.has(room.slug)) {
-      const state = activeRooms.get(room.slug);
-      state.strokes = [];
-      state.eraserStrokes.clear();
-      state.lastSaved = Date.now();
-      
-      const msg = JSON.stringify({ type: 'clear' });
-      for (const [ws, _] of state.clients) {
-        ws.send(msg);
+    const state = activeRooms.get(room.slug);
+    if (state) {
+      state.notes = [];
+      const msg = JSON.stringify({ type: 'cleared' });
+      for (const ws of state.clients.keys()) {
+        if (ws.readyState === 1) ws.send(msg);
       }
     }
 
-    updateCanvasData(db, id, emptyCanvas);
+    updateCanvasData(db, id, serializeNotes([]));
     res.json({ success: true });
   });
 

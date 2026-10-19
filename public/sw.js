@@ -1,29 +1,45 @@
-const CACHE_NAME = 'passnote-v1';
-const ASSETS = [
+// Netz zuerst, Cache nur als Notfall – so kommt jedes Update sofort an
+const CACHE_NAME = 'passnote-v3';
+const SHELL = [
     '/',
-    '/index.html',
     '/board.html',
-    '/admin.html',
     '/manifest.json',
-    '/assets/style.css',
-    '/assets/app.js',
-    '/assets/admin.js'
+    '/assets/zettel.css?v=1',
+    '/assets/board.js?v=1',
+    '/assets/start.js?v=1'
 ];
 
 self.addEventListener('install', (e) => {
     e.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(SHELL))
+            .catch(() => {})
+            .then(() => self.skipWaiting())
+    );
+});
+
+self.addEventListener('activate', (e) => {
+    e.waitUntil(
+        caches.keys()
+            .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+            .then(() => self.clients.claim())
     );
 });
 
 self.addEventListener('fetch', (e) => {
-    if (e.request.url.includes('/api/') || e.request.url.includes('/ws')) {
-        return; // Network only for APIs and WebSocket
-    }
-    
+    const url = new URL(e.request.url);
+    if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) return;
+
     e.respondWith(
-        caches.match(e.request).then((cached) => {
-            return cached || fetch(e.request);
-        })
+        fetch(e.request)
+            .then((res) => {
+                if (res.ok) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+                }
+                return res;
+            })
+            .catch(() => caches.match(e.request, { ignoreSearch: url.pathname === '/board.html' }))
     );
 });
