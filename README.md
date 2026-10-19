@@ -9,8 +9,8 @@
 
 > ✏️ Zettelchen schreiben im Unterricht – mit dem Apple Pencil, im Look einer ganz normalen Heftseite. Selbst gehostet.
 
-[![Build & Push Docker Image](https://github.com/DEIN_GITHUB_USER/passnote/actions/workflows/docker.yml/badge.svg)](https://github.com/DEIN_GITHUB_USER/passnote/actions/workflows/docker.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/DEIN_GITHUB_USER/passnote)](https://ghcr.io/DEIN_GITHUB_USER/passnote)
+[![Build & Push Docker Image](https://github.com/EinfachRuwen/passnote/actions/workflows/docker.yml/badge.svg)](https://github.com/EinfachRuwenpassnote/actions/workflows/docker.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/EinfachRuwen/passnote)](https://ghcr.io/EinfachRuwen/passnote)
 
 ---
 
