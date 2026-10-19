@@ -1,11 +1,11 @@
 // Netz zuerst, Cache nur als Notfall – so kommt jedes Update sofort an
-const CACHE_NAME = 'passnote-v3';
+const CACHE_NAME = 'passnote-v4';
 const SHELL = [
     '/',
     '/board.html',
     '/manifest.json',
-    '/assets/zettel.css?v=1',
-    '/assets/board.js?v=1',
+    '/assets/zettel.css?v=2',
+    '/assets/board.js?v=2',
     '/assets/start.js?v=1'
 ];
 

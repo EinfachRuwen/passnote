@@ -648,6 +648,7 @@
     var drawing = null;
     var erasing = null;
     var penSeen = false;
+    var lastPenAt = 0;
     var textMode = false;
     var W = 0;
     var H = 0;
@@ -704,16 +705,29 @@
         return (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
     }
 
+    // iPad: Ohne das wartet WebKit (Safari und Chrome) nach jedem Strich, ob eine
+    // Systemgeste (Lupe, Textauswahl, Doppeltipp) kommt, und verzögert den nächsten Strich
+    ['touchstart', 'touchmove', 'touchend'].forEach(function (type) {
+        canvas.addEventListener(type, function (e) {
+            if (e.cancelable) e.preventDefault();
+        }, { passive: false });
+    });
+
     canvas.addEventListener('pointerdown', function (e) {
         if (e.pointerType === 'pen') {
             penSeen = true;
+            lastPenAt = Date.now();
         } else if (penSeen && e.pointerType === 'touch') {
             return; // Handballen ignorieren, sobald der Pencil benutzt wurde
         }
 
         if (drawing || erasing) {
-            if (e.pointerType === 'pen' && drawing && drawing.pointerType !== 'pen') {
-                cancelDrawing();
+            if (e.pointerType === 'pen') {
+                // Der Pencil hat immer Vorrang: Handballen-Strich verwerfen,
+                // einen hängengebliebenen Strich (verlorenes pointerup) abschließen
+                if (drawing && drawing.pointerType !== 'pen') cancelDrawing();
+                else finishDrawing();
+                erasing = null;
             } else if (e.pointerType === 'touch' && drawing && drawing.pointerType === 'touch') {
                 cancelDrawing(); // Zwei Finger = Geste, kein Strich
                 return;
@@ -747,22 +761,36 @@
             return;
         }
         if (!drawing || e.pointerId !== drawing.pointerId) return;
+        if (e.pointerType === 'pen') {
+            lastPenAt = Date.now();
+            // Pencil schwebt nur noch über dem Display: pointerup ist verloren gegangen
+            if (e.buttons === 0 && e.pressure === 0) {
+                finishDrawing();
+                return;
+            }
+        }
         eventsOf(e).forEach(function (ev) { addPoint(toPoint(ev)); });
     });
 
-    function endPointer(e) {
-        if (erasing && e.pointerId === erasing.pointerId) {
-            erasing = null;
-            return;
-        }
-        if (!drawing || e.pointerId !== drawing.pointerId) return;
+    function finishDrawing() {
+        if (!drawing) return;
         var s = drawing.stroke;
         drawing = null;
         drawPieces(cctx, s.p, s.s, s.c, s.p.length / 3, true);
         undoStack.push({ type: 'add', stroke: s });
     }
+
+    function endPointer(e) {
+        if (e.pointerType === 'pen') lastPenAt = Date.now();
+        if (erasing && e.pointerId === erasing.pointerId) {
+            erasing = null;
+            return;
+        }
+        if (drawing && e.pointerId === drawing.pointerId) finishDrawing();
+    }
     canvas.addEventListener('pointerup', endPointer);
     canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('lostpointercapture', endPointer);
 
     function distToSegSq(px, py, ax, ay, bx, by) {
         var dx = bx - ax;
@@ -916,11 +944,7 @@
     }
 
     function sendNote() {
-        if (drawing) {
-            var s = drawing.stroke;
-            drawing = null;
-            undoStack.push({ type: 'add', stroke: s });
-        }
+        finishDrawing();
         var text = textEl.value.trim();
         var ink = buildInk();
         if (!text && !ink) return;
@@ -1045,7 +1069,15 @@
     var lastTwoFingerTap = 0;
     document.addEventListener('touchstart', function (e) {
         if (e.touches.length !== 2) return;
+        // Pencil + aufliegender Handballen sind auch zwei Berührungen – das ist Schreiben, keine Geste
+        for (var i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].touchType === 'stylus') return;
+        }
         var now = Date.now();
+        if (drawing || now - lastPenAt < 800) {
+            lastTwoFingerTap = 0;
+            return;
+        }
         if (now - lastTwoFingerTap < 450) {
             lastTwoFingerTap = 0;
             e.preventDefault();
