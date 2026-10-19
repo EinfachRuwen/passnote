@@ -88,19 +88,23 @@ function renderRooms(rooms) {
         
         tr.innerHTML = `
             <td class="room-name-cell">
-                <strong>${room.name || 'Ohne Name'}</strong>
-                <small>${room.slug}</small>
+                <strong>${escapeHtml(room.name || 'Ohne Name')}</strong>
+                <small>${escapeHtml(room.slug)}</small>
             </td>
             <td><span class="badge ${room.type}">${room.type === 'permanent' ? 'Permanent' : 'Temporär'}</span></td>
             <td><strong>${room.activeUsers}</strong> / ${room.max_users}</td>
             <td>${lastActivityDate}</td>
             <td class="modern-action-btns">
-                <button class="action-btn qr" title="QR Code anzeigen" onclick="showQr('${room.slug}')">📱</button>
-                <button class="action-btn" title="Board leeren" onclick="clearRoom('${room.id}')">🧹</button>
-                <button class="action-btn delete" title="Raum löschen" onclick="deleteRoom('${room.id}')">🗑</button>
+                <button class="action-btn qr" title="QR Code anzeigen" data-action="qr">📱</button>
+                <button class="action-btn" title="Zettel leeren" data-action="clear">🧹</button>
+                <button class="action-btn delete" title="Raum löschen" data-action="delete">🗑</button>
             </td>
         `;
         
+        tr.querySelector('[data-action="qr"]').addEventListener('click', () => showQr(room.slug));
+        tr.querySelector('[data-action="clear"]').addEventListener('click', () => clearRoom(room.id));
+        tr.querySelector('[data-action="delete"]').addEventListener('click', () => deleteRoom(room.id));
+
         tbody.appendChild(tr);
     });
     
@@ -192,3 +196,9 @@ window.showQr = async function(slug) {
 document.getElementById('admin-close-qr')?.addEventListener('click', () => {
     document.getElementById('admin-qr-modal').classList.add('hidden');
 });
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+document.getElementById('btn-refresh-rooms').addEventListener('click', () => loadRooms());

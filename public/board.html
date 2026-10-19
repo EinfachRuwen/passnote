@@ -2,94 +2,136 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PassNote</title>
-    <link rel="stylesheet" href="/assets/style.css?v=17">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Notizen</title>
+    <link rel="stylesheet" href="/assets/zettel.css?v=1">
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FDFCF8">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Notizen">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
-<body class="chat-page">
+<body>
 
-    <!-- Username Modal (Start) -->
-    <div id="username-modal" class="modal">
-        <div class="modal-content glass-modal">
-            <h3>Dein Name?</h3>
-            <p>Unter welchem Namen möchtest du mitschreiben?</p>
-            <input type="text" id="username-input" placeholder="z.B. Alex" maxlength="15" autocomplete="off" class="modern-input">
-            <button id="btn-join" class="primary-btn btn-block" style="margin-top: 1rem;">Raum betreten</button>
-        </div>
-    </div>
-
-    <!-- Password Modal -->
-    <div id="password-modal" class="modal hidden">
-        <div class="modal-content glass-modal">
-            <h3>Raum Passwort</h3>
-            <input type="password" id="room-password" placeholder="Passwort">
-            <div id="password-error" class="error-message hidden"></div>
-            <button id="btn-submit-password" class="primary-btn btn-block" style="margin-top: 1rem;">Entsperren</button>
-        </div>
-    </div>
-
-    <!-- Main Chat UI -->
-    <div id="chat-ui" class="chat-ui hidden">
-        <!-- Header -->
-        <header class="chat-header">
-            <div class="header-left">
-                <span class="room-badge" id="room-name-display">Room</span>
-            </div>
-            <div class="header-right" id="active-users-list">
-                <!-- User bubbles will appear here -->
-            </div>
-            <button id="btn-exit" class="icon-btn">🚪</button>
+    <div class="board" id="board">
+        <header class="board-header">
+            <input class="subject" id="subject" value="Mitschrift" maxlength="40" autocomplete="off" spellcheck="false" aria-label="Fach">
+            <span class="header-date" id="header-date"></span>
+            <div class="people" id="people"></div>
+            <button class="icon-btn" id="btn-invite" title="Einladen">
+                <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M19 8v6M16 11h6"/></svg>
+            </button>
+            <button class="icon-btn" id="btn-cover" title="Heft">
+                <svg viewBox="0 0 24 24"><path d="M5 3.5h11a3 3 0 0 1 3 3v14H8a3 3 0 0 1-3-3z"/><path d="M5 17.5a3 3 0 0 1 3-3h11"/><path d="M9 7.5h6"/></svg>
+            </button>
         </header>
 
-        <!-- Chat History -->
-        <main class="chat-history" id="chat-history">
-            <!-- Messages go here -->
-        </main>
+        <div class="page-wrap">
+            <main class="page paper" id="page">
+                <div class="notes-empty hidden" id="notes-empty">Noch keine Zettel hier. Schreib unten was und gib's weiter.</div>
+                <div id="notes"></div>
+                <div class="page-status" id="page-status"></div>
+            </main>
+            <button class="new-pill hidden" id="new-pill">neuer Zettel ↓</button>
+        </div>
 
-        <!-- Composer (Deine Eigene Zone) -->
-        <footer class="chat-composer">
-            <div class="composer-toolbar">
-                <div class="tool-group widths">
-                    <button class="width-btn" data-width="2"><span class="dot thin"></span></button>
-                    <button class="width-btn active" data-width="5"><span class="dot normal"></span></button>
-                    <button class="width-btn" data-width="10"><span class="dot thick"></span></button>
-                </div>
-                <div class="divider"></div>
-                <div class="tool-group tools">
-                    <button class="tool-btn active" data-tool="pen" title="Stift">✏️</button>
-                    <button class="tool-btn" data-tool="text" title="Text">🔤</button>
-                    <button class="tool-btn" data-tool="eraser-stroke" title="Radierer">💥</button>
-                    <button class="tool-btn" id="btn-clear-composer" title="Alles löschen">🗑</button>
-                </div>
-                <div class="divider"></div>
-                <div class="tool-group colors">
-                    <button class="color-btn active" data-color="#E2E8F0" style="background: #E2E8F0; border-color: #334155;"></button>
-                    <button class="color-btn" data-color="#60A5FA" style="background: #60A5FA"></button>
-                    <button class="color-btn" data-color="#F472B6" style="background: #F472B6"></button>
-                    <button class="color-btn" data-color="#34D399" style="background: #34D399"></button>
-                    <button class="color-btn" data-color="#FBBF24" style="background: #FBBF24"></button>
-                </div>
-            </div>
-            <div class="composer-input-area">
-                <div class="canvas-container" id="composer-container">
-                    <!-- 2 Canvases wie beim Board, aber nur für den Composer -->
-                    <canvas id="composer-board"></canvas>
-                    <canvas id="composer-overlay"></canvas>
-                </div>
-                <button id="btn-send-chat" class="send-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        <footer class="composer" id="composer">
+            <div class="composer-tools">
+                <button class="ink-btn active" data-color="#1F2A44" style="color:#1F2A44" title="Schwarz"><span></span></button>
+                <button class="ink-btn" data-color="#1D4ED8" style="color:#1D4ED8" title="Blau"><span></span></button>
+                <button class="ink-btn" data-color="#C0262D" style="color:#C0262D" title="Rot"><span></span></button>
+                <button class="ink-btn" data-color="#15803D" style="color:#15803D" title="Grün"><span></span></button>
+                <button class="ink-btn" data-color="#7C3AED" style="color:#7C3AED" title="Lila"><span></span></button>
+                <div class="tool-sep"></div>
+                <button class="size-btn" data-size="2" title="Fein"><span style="width:5px;height:5px"></span></button>
+                <button class="size-btn active" data-size="3.5" title="Normal"><span style="width:8px;height:8px"></span></button>
+                <button class="size-btn" data-size="6" title="Dick"><span style="width:12px;height:12px"></span></button>
+                <div class="tool-sep"></div>
+                <button class="icon-btn" id="btn-eraser" title="Radierer">
+                    <svg viewBox="0 0 24 24"><path d="M7 20h13"/><path d="M4.6 14.6l9.9-9.9a2 2 0 0 1 2.8 0l2 2a2 2 0 0 1 0 2.8L11 18H8z"/><path d="M9.5 9.7l4.8 4.8"/></svg>
                 </button>
+                <button class="icon-btn" id="btn-undo" title="Rückgängig">
+                    <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                </button>
+                <button class="icon-btn" id="btn-text" title="Tippen">
+                    <svg viewBox="0 0 24 24"><path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/></svg>
+                </button>
+                <button class="icon-btn" id="btn-clear" title="Zettel leeren">
+                    <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>
+                </button>
+                <div class="tools-spacer"></div>
+                <button class="send-btn" id="btn-send" title="Weitergeben">
+                    <span class="send-label">weitergeben</span>
+                    <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+                </button>
+            </div>
+            <div class="composer-area paper" id="composer-area">
+                <canvas id="composer-canvas"></canvas>
+                <textarea class="composer-text hidden" id="composer-text" placeholder="Hier tippen oder mit dem Pencil kritzeln …" maxlength="2000"></textarea>
+                <div class="composer-hint" id="composer-hint">hier schreiben …</div>
             </div>
         </footer>
     </div>
 
-    <!-- Panic Screen (Fake Wikipedia) -->
-    <div id="panic-screen" class="panic-screen hidden">
-        <iframe src="https://de.wikipedia.org/wiki/Photosynthese" style="width: 100%; height: 100%; border: none;"></iframe>
+    <!-- Name -->
+    <div class="sheet hidden" id="name-sheet">
+        <form class="card paper" id="name-form">
+            <h2>Wer schreibt?</h2>
+            <p>Dein Name steht am Rand neben deinen Zetteln.</p>
+            <input class="field" id="name-input" maxlength="20" placeholder="z.B. Alex" autocomplete="off" autocapitalize="words">
+            <button class="btn primary" type="submit">Los geht's</button>
+        </form>
     </div>
 
-    <script src="/assets/app.js?v=17"></script>
+    <!-- Passwort -->
+    <div class="sheet hidden" id="password-sheet">
+        <form class="card paper" id="password-form">
+            <h2>Passwort</h2>
+            <p>Dieser Block ist geschützt.</p>
+            <div class="error hidden" id="password-error">Falsches Passwort.</div>
+            <input class="field" type="password" id="password-input" placeholder="Passwort" autocomplete="off">
+            <button class="btn primary" type="submit">Aufschlagen</button>
+            <a class="btn quiet" href="/">Zurück</a>
+        </form>
+    </div>
+
+    <!-- Fehler -->
+    <div class="sheet hidden" id="error-sheet">
+        <div class="card paper">
+            <h2 id="error-title">Hm.</h2>
+            <p id="error-text"></p>
+            <button class="btn primary hidden" id="btn-retry">Nochmal versuchen</button>
+            <a class="btn" href="/">Zur Startseite</a>
+        </div>
+    </div>
+
+    <!-- Einladen / Einstellungen -->
+    <div class="sheet hidden" id="invite-sheet">
+        <div class="card paper">
+            <h2>Jemanden einladen</h2>
+            <p>QR-Code scannen lassen oder den Code weitersagen.</p>
+            <img class="qr" id="invite-qr" alt="">
+            <div class="code" id="invite-code"></div>
+            <button class="btn" id="btn-copy-link">Link kopieren</button>
+            <label class="small-label" for="rename-input">Dein Name</label>
+            <input class="field" id="rename-input" maxlength="20" autocomplete="off">
+            <button class="btn primary" id="btn-invite-close">Fertig</button>
+            <a class="btn quiet" href="/">Block verlassen</a>
+        </div>
+    </div>
+
+    <!-- Tarn-Heft: zwei Finger doppelt tippen -->
+    <div class="cover paper hidden" id="cover">
+        <div class="cover-header">
+            <input class="cover-title" id="cover-title" maxlength="40" autocomplete="off" spellcheck="false">
+            <span class="cover-dot" id="cover-dot">·</span>
+            <span class="cover-date" id="cover-date"></span>
+        </div>
+        <textarea class="cover-text" id="cover-text" spellcheck="false"></textarea>
+        <div class="cover-hint" id="cover-hint">Zurück: mit zwei Fingern doppelt tippen</div>
+    </div>
+
+    <script src="/assets/board.js?v=1"></script>
 </body>
 </html>

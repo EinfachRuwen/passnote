@@ -7,7 +7,7 @@
 ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝ ╚═════╝    ╚═╝   ╚══════╝
 ```
 
-> 🔐 Sicheres, selbst gehostetes Echtzeit-Notizsystem mit Passwortschutz
+> ✏️ Zettelchen schreiben im Unterricht – mit dem Apple Pencil, im Look einer ganz normalen Heftseite. Selbst gehostet.
 
 [![Build & Push Docker Image](https://github.com/DEIN_GITHUB_USER/passnote/actions/workflows/docker.yml/badge.svg)](https://github.com/DEIN_GITHUB_USER/passnote/actions/workflows/docker.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/DEIN_GITHUB_USER/passnote)](https://ghcr.io/DEIN_GITHUB_USER/passnote)
@@ -16,14 +16,15 @@
 
 ## ✨ Features
 
-- 📝 **Echtzeit-Kollaboration** via WebSocket – Änderungen sofort für alle sichtbar
-- 🔒 **Passwortgeschützte Räume** – jeder Raum mit eigenem Zugangscode
-- 🗄️ **SQLite-Datenbank** – keine externe Datenbank nötig, alles in einer Datei
-- 🐳 **Docker-Ready** – ein Befehl zum Starten
-- 🍓 **Raspberry Pi 4 optimiert** – ARM64-Image, minimaler Ressourcenverbrauch
-- ☁️ **Cloudflare Tunnel kompatibel** – sicherer HTTPS-Zugang ohne offene Ports
-- 🛡️ **Admin-Panel** – Räume verwalten, Benutzer überwachen
-- 🔄 **Automatischer Cleanup** – inaktive Räume werden nach TTL gelöscht
+- 📓 **Sieht aus wie Mitschrift** – liniertes Papier, roter Rand, Tinte statt Chat-Blasen. Als Web-App heißt sie auf dem Homescreen einfach „Notizen“.
+- ✍️ **Handschrift mit dem Pencil** – Druckempfindlichkeit, Handballen-Erkennung, Radierer, Rückgängig. Tippen geht auch (inkl. Scribble).
+- 📖 **Tarn-Heft** – mit zwei Fingern doppelt tippen (oder Heft-Symbol / Esc): sofort erscheint eine echte, bearbeitbare Mitschrift. Neue Zettel verraten sich dort nur durch einen kleinen Punkt. Nochmal zwei Finger doppelt tippen → zurück.
+- 🔁 **Geht nichts verloren** – Zettel werden auch offline geschrieben und automatisch verschickt, sobald das iPad wieder online ist. Nach Standby verbindet die App sich von selbst neu, ohne doppelte Zettel.
+- 🗑 **Eigene Zettel wegwerfen** – lange drücken (oder Rechtsklick) auf einen eigenen Zettel.
+- 👀 **Wer schreibt gerade?** – leise Anzeige „Max schreibt …“, keine Töne, keine Vibration.
+- 🔒 **Blöcke mit Code** – optional mit Passwort; Einladen per QR-Code oder Link.
+- 🗄️ **SQLite**, 🐳 **Docker**, 🍓 **Raspberry Pi**, ☁️ **Cloudflare Tunnel** – wie gehabt.
+- 🔄 **Automatischer Cleanup** – inaktive Blöcke werden nach TTL gelöscht
 
 ---
 

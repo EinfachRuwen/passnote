@@ -2,7 +2,7 @@
   "name": "passnote",
   "version": "1.0.0",
   "type": "module",
-  "description": "Kollaboratives iPad-Whiteboard für den Schulunterricht",
+  "description": "Zettelchen schreiben im Unterricht – mit dem Apple Pencil, im Look einer Heftseite",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

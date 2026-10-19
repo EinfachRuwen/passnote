@@ -1,27 +1,31 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
-import { getRoomBySlug } from '../db/queries.js';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { getRoomBySlug, createRoom } from '../db/queries.js';
+import { generateSlug } from '../utils/slug.js';
 
 export function createRoomsRouter(db, activeRooms) {
   const router = Router();
   
-  // Normaler Nutzer erstellt einen temporären Raum
+  // Normaler Nutzer erstellt einen temporären Raum (optional mit Passwort)
   router.post('/', async (req, res) => {
     try {
-      const slug = (await import('../utils/slug.js')).generateSlug();
-      const { v4: uuidv4 } = await import('uuid');
-      const { createRoom } = await import('../db/queries.js');
-      
-      const roomId = uuidv4();
+      const password = typeof req.body?.password === 'string' ? req.body.password.slice(0, 100) : '';
+      const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+
+      let slug = generateSlug();
+      for (let i = 0; i < 10 && getRoomBySlug(db, slug); i++) slug = generateSlug();
+
       const room = createRoom(db, {
-        id: roomId,
+        id: uuidv4(),
         slug,
         name: null,
         type: 'temporary',
-        passwordHash: null,
+        passwordHash,
         maxUsers: parseInt(process.env.MAX_USERS_DEFAULT || '50')
       });
-      
+
       res.json({ success: true, slug: room.slug });
     } catch (err) {
       console.error('Error creating public room:', err);
@@ -30,7 +34,7 @@ export function createRoomsRouter(db, activeRooms) {
   });
 
   router.get('/:slug/info', (req, res) => {
-    const { slug } = req.params;
+    const slug = req.params.slug.toLowerCase();
     const room = getRoomBySlug(db, slug);
     
     if (!room) {
