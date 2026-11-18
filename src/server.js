@@ -94,6 +94,12 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Datenschutzerklärung unter /datenschutz (ohne .html)
+app.get('/datenschutz', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, '../public/datenschutz.html'));
+});
+
 // Static Files
 // HTML-Dateien werden nie gecacht, JS/CSS/Assets prüfen immer beim Server nach
 app.use(express.static(path.join(__dirname, '../public'), {

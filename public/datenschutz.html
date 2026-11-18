@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Datenschutz – PassNote</title>
+    <link rel="stylesheet" href="/assets/zettel.css?v=2">
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FDFCF8">
+</head>
+<body class="start-page legal-page">
+    <div class="start">
+        <article class="card paper legal">
+            <a class="legal-back" href="/">← zurück zu PassNote</a>
+            <h1 class="brand">Datenschutz</h1>
+            <p class="legal-meta">Datenschutzerklärung für PassNote (passnote.fcrw.cc) · Stand: 18. November 2026</p>
+
+            <h2>1. Wer verantwortlich ist</h2>
+            <p>Ruwen Hohnholz<br>
+            c/o Autorenglück #45094<br>
+            Albert-Einstein-Str. 47<br>
+            02977 Hoyerswerda<br>
+            E-Mail: <a href="mailto:info@focusonruwen.com">info@focusonruwen.com</a></p>
+            <p>Diese Erklärung gilt nur für PassNote. PassNote ist ein privates Projekt: keine Werbung, kein Verkauf von Daten, kein Tracking, keine Statistik und keine Cookies.</p>
+
+            <h2>2. Was PassNote speichert</h2>
+            <p><strong>Blöcke.</strong> Wenn du einen Block anlegst, speichere ich auf meinem Server den zufällig erzeugten Code (z.&nbsp;B. <code>calm-moon-42</code>), den Zeitpunkt der Erstellung und der letzten Aktivität und, falls du eins vergibst, das Passwort des Blocks. Das Passwort wird nur als Hash (bcrypt) gespeichert, nie im Klartext.</p>
+            <p><strong>Zettel.</strong> Zu jedem Zettel speichere ich, was du getippt oder mit dem Stift geschrieben hast (Text bzw. Strichdaten), den Anzeigenamen, den du eingibst (höchstens 20 Zeichen), eine zufällige Kennung deines Geräts, die zugeteilte Farbe und die Uhrzeit. Pro Block bleiben die neuesten 150 Zettel erhalten; ältere fallen automatisch heraus. Eigene Zettel kannst du jederzeit wegwerfen (lange drücken oder Rechtsklick), dann werden sie aus dem Block entfernt.</p>
+            <p><strong>Wer das sieht.</strong> Alle, die gerade im selben Block sind oder ihn später öffnen, sehen die Zettel mit deinem Anzeigenamen. Solange du im Block bist, sehen sie außerdem deinen Namen in der Teilnehmerliste und den Hinweis „… schreibt“. Einen Block ohne Passwort kann jede Person öffnen, die den Code kennt oder errät. Die Codes sind kurz; für alles, was nicht jeder lesen soll, nutze bitte ein Passwort.</p>
+            <p>Die Zettel liegen nicht Ende-zu-Ende verschlüsselt auf meinem Server. Als Betreiber kann ich Blöcke über einen Admin-Bereich ansehen, leeren und löschen.</p>
+            <p><strong>Bitte gib keinen vollständigen Namen und keine sensiblen Daten ein.</strong> Ein Vorname oder Spitzname reicht.</p>
+            <p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO: Ohne diese Daten kann PassNote keine Zettel zwischen euch weitergeben.</p>
+
+            <h2>3. Wann gelöscht wird</h2>
+            <p>Blöcke, die sieben Tage lang nicht benutzt wurden, werden mit allen Zetteln automatisch gelöscht. Als Benutzung zählt, wenn jemand einen Zettel schreibt oder wegwirft oder den Block nach einem Besuch wieder verlässt. Die Prüfung läuft einmal pro Stunde; ein Block, in dem gerade jemand ist, wird nicht gelöscht.</p>
+            <p>Ausnahme: Blöcke, die ich selbst im Admin-Bereich als „dauerhaft“ anlege, werden nicht automatisch gelöscht, sondern erst, wenn ich sie lösche.</p>
+            <p>Wenn du möchtest, dass ein Block früher verschwindet, schreib mir den Code an die oben genannte E-Mail-Adresse.</p>
+
+            <h2>4. Server, Cloudflare und Protokolle</h2>
+            <p><strong>Eigener Server.</strong> PassNote läuft auf meinem eigenen Server. Dort liegen die Datenbank mit den Blöcken und Zetteln.</p>
+            <p><strong>Cloudflare.</strong> Die Verbindung zu PassNote, einschließlich der Live-Verbindung für die Zettel (WebSocket), wird über Cloudflare Inc., 101 Townsend St, San Francisco, CA 94107, USA, geleitet (Cloudflare Tunnel). Die verschlüsselte HTTPS-Verbindung endet dabei bei Cloudflare und wird von dort an meinen Server weitergeleitet. Cloudflare verarbeitet dabei deine IP-Adresse, Datum und Uhrzeit, die aufgerufene Adresse (darin auch der Code eines Blocks), Browser- und Systemangaben und leitet die übertragenen Inhalte durch. Das ist nötig, damit PassNote sicher erreichbar ist, ohne dass mein Server direkt aus dem Internet erreichbar sein muss, und um Angriffe abzuwehren (Art. 6 Abs. 1 lit. f DSGVO). Cloudflare ist unter dem EU-US Data Privacy Framework zertifiziert (Art. 45 DSGVO).</p>
+            <p><strong>Protokolle auf meinem Server.</strong> PassNote selbst schreibt keine Zugriffsprotokolle mit IP-Adressen. Um Missbrauch zu bremsen, merkt sich der Server deine IP-Adresse kurz im Arbeitsspeicher und zählt deine Anfragen (höchstens 300 in 15 Minuten); nach Ablauf des Zeitfensters oder bei einem Neustart ist das vergessen (Art. 6 Abs. 1 lit. f DSGVO). Betriebsmeldungen wie Start, Fehler und Löschläufe (mit dem Code gelöschter Blöcke) landen ohne IP-Adresse in einem Protokoll, das automatisch überschrieben wird.</p>
+
+            <h2>5. Speicher in deinem Browser</h2>
+            <p>PassNote setzt keine Cookies. Damit die App funktioniert, speichert sie Folgendes nur in deinem Browser. Das ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG), deshalb gibt es keinen Cookie-Banner. Du kannst alles löschen, indem du die Website-Daten für passnote.fcrw.cc in deinem Browser entfernst.</p>
+            <div class="legal-table-wrap">
+            <table class="legal-table">
+                <thead>
+                    <tr><th>Name</th><th>Wofür</th><th>Wie lange</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>passnote_username</code></td><td>dein Anzeigename</td><td>bis du ihn löschst</td></tr>
+                    <tr><td><code>passnote_client_id</code></td><td>zufällige Kennung, damit deine Zettel dir zugeordnet werden, du nur eigene wegwerfen kannst und nach einem Neuverbinden nichts doppelt ankommt</td><td>bis du sie löschst</td></tr>
+                    <tr><td><code>passnote_recent</code></td><td>Codes deiner letzten bis zu sechs Blöcke (Liste „Zuletzt“)</td><td>bis du sie löschst</td></tr>
+                    <tr><td><code>passnote_outbox_&lt;Code&gt;</code></td><td>Zettel, die noch nicht verschickt werden konnten (z.&nbsp;B. offline)</td><td>bis sie angekommen sind</td></tr>
+                    <tr><td><code>passnote_subject_&lt;Code&gt;</code></td><td>die Fach-Überschrift über einem Block, nur auf deinem Gerät</td><td>bis du sie löschst</td></tr>
+                    <tr><td><code>passnote_cover_title</code>, <code>passnote_cover_text</code></td><td>Titel und Text des Tarn-Hefts; wird nie an den Server geschickt</td><td>bis du sie löschst</td></tr>
+                    <tr><td><code>passnote_cover_hints</code></td><td>zählt, wie oft der Hinweis zum Tarn-Heft gezeigt wurde</td><td>bis du ihn löschst</td></tr>
+                    <tr><td><code>passnote_pw_&lt;Code&gt;</code> (Sitzungsspeicher)</td><td>Passwort eines geschützten Blocks, damit die App sich nach einem Verbindungsabbruch selbst wieder anmelden kann</td><td>bis du den Tab schließt</td></tr>
+                    <tr><td>Service Worker <code>/sw.js</code> mit Cache <code>passnote-v4</code></td><td>Dateien der App und aufgerufene Seiten, damit PassNote auch kurz ohne Netz startet; keine Zettel</td><td>bis zum nächsten App-Update oder bis du die Website-Daten löschst</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <p>Mit „Link kopieren“ legt PassNote den Link zu einem Block in deiner Zwischenablage ab, nur wenn du darauf tippst.</p>
+
+            <h2>6. Keine externen Dienste</h2>
+            <p>Alle Dateien von PassNote kommen von meinem Server. Es werden keine Schriften, Skripte oder Bilder von anderen Anbietern geladen; der QR-Code zum Einladen wird auf meinem Server erzeugt. Es gibt keine Statistik oder Reichweitenmessung. Der Link zum Impressum führt auf focusonruwen.com; dort gilt die Datenschutzerklärung dieser Website.</p>
+
+            <h2>7. Empfänger und Drittlandübermittlung</h2>
+            <p>Empfänger deiner Daten sind die anderen Personen im selben Block (siehe Abschnitt 2) und Cloudflare als Dienstleister für die Verbindung (siehe Abschnitt 4). Cloudflare sitzt in den USA; die Übermittlung erfolgt auf Grundlage des Angemessenheitsbeschlusses zum EU-US Data Privacy Framework (Art. 45 DSGVO), unter dem Cloudflare zertifiziert ist. Darüber hinaus gebe ich nichts weiter.</p>
+
+            <h2>8. Deine Rechte</h2>
+            <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen (Art. 21). Eine Einwilligung kannst du jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3). Eine formlose E-Mail genügt. Weil PassNote keine Konten hat, nenn mir dafür bitte den Code des Blocks und deinen Anzeigenamen.</p>
+            <p>Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), etwa bei der Landesbeauftragten für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.</p>
+
+            <h2>9. Musst du Daten angeben?</h2>
+            <p>Du bist weder gesetzlich noch vertraglich verpflichtet, Daten anzugeben. Ohne Anzeigenamen kannst du PassNote aber nicht benutzen, und ohne die Verbindungsdaten (z.&nbsp;B. deine IP-Adresse) kann die Seite nicht ausgeliefert werden. Als Anzeigename reicht ein Spitzname.</p>
+
+            <h2>10. Keine automatisierten Entscheidungen</h2>
+            <p>Es gibt keine automatisierte Entscheidungsfindung und kein Profiling (Art. 22 DSGVO).</p>
+
+            <h2>11. Änderungen</h2>
+            <p>Ich passe diese Datenschutzerklärung an, wenn sich PassNote ändert. Es gilt die hier veröffentlichte Fassung.</p>
+
+            <p class="legal-links"><a href="/">PassNote</a> · <a href="https://focusonruwen.com/impressum" target="_blank" rel="noopener">Impressum</a></p>
+        </article>
+    </div>
+</body>
+</html>

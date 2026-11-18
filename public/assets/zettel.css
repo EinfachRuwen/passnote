@@ -694,3 +694,130 @@ details summary {
 
 .legal-links { margin-top: 24px; text-align: center; font-size: 12px; opacity: .6; }
 .legal-links a { color: inherit; }
+
+/* ===== Datenschutz ===== */
+.legal-page .start {
+    align-items: flex-start;
+}
+
+.start .card.legal {
+    max-width: 760px;
+    max-height: none;
+    overflow: visible;
+    margin: 8px 0 24px;
+}
+
+.legal .brand {
+    font-weight: normal;
+}
+
+.legal-back {
+    display: inline-block;
+    font-family: var(--hand);
+    color: var(--pencil);
+    text-decoration: none;
+    margin-bottom: 8px;
+}
+
+.legal-meta {
+    font-size: 0.85rem;
+}
+
+.card.legal h2 {
+    font-size: 1.35rem;
+    margin: 18px 0 4px;
+}
+
+.card.legal p,
+.legal-table {
+    font-family: var(--ui);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 0.95rem;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.legal a {
+    color: var(--ink);
+}
+
+.legal code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: rgba(31, 42, 68, 0.06);
+    padding: 1px 4px;
+    border-radius: 4px;
+    word-break: break-word;
+}
+
+.legal-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 12px;
+}
+
+.legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.legal-table th,
+.legal-table td {
+    text-align: left;
+    vertical-align: top;
+    padding: 6px 8px 6px 0;
+    border-bottom: 1px dashed var(--rule);
+}
+
+.legal-table th {
+    font-family: var(--hand);
+    font-weight: normal;
+    color: var(--pencil);
+}
+
+.card.legal .legal-links {
+    font-family: var(--ui);
+    color: var(--ink);
+    line-height: 1.4;
+}
+
+.sheet .legal-links {
+    margin-top: 14px;
+}
+
+@media (max-width: 600px) {
+    .start .card.legal {
+        padding: 20px 16px 18px 40px;
+    }
+
+    .legal-table thead {
+        display: none;
+    }
+
+    .legal-table,
+    .legal-table tbody,
+    .legal-table tr,
+    .legal-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .legal-table tr {
+        padding: 6px 0;
+        border-bottom: 1px dashed var(--rule);
+    }
+
+    .legal-table td {
+        border-bottom: none;
+        padding: 1px 0;
+    }
+
+    .legal-table td:nth-child(3) {
+        color: var(--pencil);
+    }
+
+    .legal-table td:nth-child(3)::before {
+        content: "Dauer: ";
+    }
+}
